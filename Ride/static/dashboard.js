@@ -78,6 +78,23 @@ function renderFinanceBarChart(labels, revenue, expense, net){
         options: {
             responsive: true,
             maintainAspectRatio: false,
+
+            onClick: async function(evt, elements) {
+
+                if (!elements.length) return;
+
+                const index = elements[0].index;
+                const datasetIndex = elements[0].datasetIndex;
+
+                const month = labels[index];
+
+                let type;
+                if (datasetIndex === 0) type = "revenue";
+                else if (datasetIndex === 1) type = "cost";
+                else type = "net";
+
+                await loadMonthlyDetails(month, type);
+            },
             plugins: {
                 legend: {
                     position: 'bottom'
@@ -158,4 +175,42 @@ function normalizeFinanceSeries(apiData, window = 12){
     });
 
     return { labels, revenue, expense, net };
+}
+
+// monthly detail
+
+async function loadMonthlyDetails(month, type){
+
+    const switchEl = document.getElementById("dashboardModeSwitch");
+    const mode = switchEl && switchEl.checked ? "full" : "operation";
+
+    const res = await fetch(
+        `/api/finance/monthly-details?month=${month}&type=${type}&mode=${mode}`
+    );
+
+    const json = await res.json();
+    if(!json.success) return;
+
+    renderDetailModal(month, type, json.data);
+}
+
+function renderDetailModal(month, type, rows){
+
+    const body = document.getElementById("financeDetailBody");
+    body.innerHTML = "";
+
+    rows.forEach(r => {
+        body.innerHTML += `
+            <tr>
+                <td>${r.tx_date}</td>
+                <td>${r.category_name}</td>
+                <td>${r.source}</td>
+                <td class="text-end">$${Number(r.amount).toLocaleString()}</td>
+            </tr>
+        `;
+    });
+
+    new bootstrap.Modal(
+        document.getElementById("financeDetailModal")
+    ).show();
 }

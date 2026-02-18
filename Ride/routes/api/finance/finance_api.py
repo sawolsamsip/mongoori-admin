@@ -371,3 +371,82 @@ def get_finance_timeseries():
             "net": net
         }
     ), 200
+
+## monthly detail
+@finance_api_bp.route("/monthly-details", methods=["GET"])
+def get_monthly_details():
+
+    if not session.get("admin_logged_in"):
+        return jsonify(success=False), 401
+
+    month = request.args.get("month")  # "2026-02"
+    mode = request.args.get("mode", "operation")
+    type_ = request.args.get("type")   # revenue / expense
+
+    if not month:
+        return jsonify(success=False), 400
+
+    year, month_num = month.split("-")
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    if mode == "full":
+        query = """
+            SELECT
+                tx_date,
+                category_name,
+                amount,
+                source
+            FROM (
+                SELECT
+                    ot.transaction_date AS tx_date,
+                    oc.name AS category_name,
+                    ot.amount,
+                    'operation' AS source,
+                    oc.type
+                FROM finance_operation_transaction ot
+                JOIN finance_operation_category oc
+                    ON ot.category_id = oc.category_id
+
+                UNION ALL
+
+                SELECT
+                    mt.transaction_date AS tx_date,
+                    mc.name AS category_name,
+                    mt.amount,
+                    'management' AS source,
+                    mc.type
+                FROM finance_management_transaction mt
+                JOIN finance_management_category mc
+                    ON mt.category_id = mc.category_id
+            )
+            WHERE strftime('%Y', tx_date) = ?
+              AND strftime('%m', tx_date) = ?
+              AND type = ?
+            ORDER BY tx_date ASC
+        """
+
+        cur.execute(query, (year, month_num, type_))
+
+    else:
+        query = """
+            SELECT
+                ot.transaction_date AS tx_date,
+                oc.name AS category_name,
+                ot.amount,
+                'operation' AS source
+            FROM finance_operation_transaction ot
+            JOIN finance_operation_category oc
+                ON ot.category_id = oc.category_id
+            WHERE strftime('%Y', ot.transaction_date) = ?
+              AND strftime('%m', ot.transaction_date) = ?
+              AND oc.type = ?
+            ORDER BY ot.transaction_date ASC
+        """
+
+        cur.execute(query, (year, month_num, type_))
+
+    rows = [dict(r) for r in cur.fetchall()]
+
+    return jsonify(success=True, data=rows)
