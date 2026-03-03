@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}
+Mongoori - Vehicle List
+{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <!-- Card header -->
+    <div class="card-header">
+        <h3 class="card-title">Vehicle Management</h3>
+        <div class="card-tools">
+            <a href="{{ url_for('vehicle_management_pages.vehicle_create_page') }}" class="btn btn-primary btn-sm">
+                + Add Vehicle
+            </a>
+        </div>
+    </div>
+    
+    <div class="card-body">
+    <!--div for Table-->
+        <table id="vehicleTableV2" class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th>Location</th>
+                    <th>Status</th>
+                    <th>Model</th>
+                    <th>Year</th>
+                    <th>Trim</th>
+                    <th>VIN</th>
+                    <th>Available</th>
+                    <th>Last Sync</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    <!--div for Table end-->
+
+
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='vehicle_management.js') }}"></script>
+{% endblock %}
