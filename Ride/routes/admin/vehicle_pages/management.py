@@ -60,3 +60,10 @@ def vehicle_detail_page(vehicle_id):
         abort(404)
 
     return render_template("form_vehicle.html", mode="detail", vehicle = vehicle)
+
+## dev
+@vehicle_pages_bp.route("/v2", methods=['GET'])
+def vehicle_list_page_v2():
+    if not session.get("admin_logged_in"):
+        return redirect(url_for("auth.admin_login"))
+    return render_template("vehicle_info_management_rental.html")

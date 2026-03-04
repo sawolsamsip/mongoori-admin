@@ -26,6 +26,8 @@ from routes.api.finance.finance_api import finance_api_bp
 
 from routes.admin.dashboard_pages.dashboard_pages import dashboard_pages_bp
 
+from routes.api.platform.management_api import management_api_bp
+
 load_dotenv()
 
 app = Flask(__name__)
@@ -61,6 +63,7 @@ app.register_blueprint(finance_pages_bp)
 app.register_blueprint(finance_api_bp)
 
 app.register_blueprint(dashboard_pages_bp)
+app.register_blueprint(management_api_bp)
 
 @app.route('/admin/debug_session')
 def debug_session():
