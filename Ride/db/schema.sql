@@ -312,3 +312,50 @@ ON finance_management_transaction(transaction_date);
 
 CREATE INDEX idx_mgmt_contract_vehicle
 ON finance_management_contract(vehicle_id);
+
+
+
+
+-- V2 platform integration
+
+CREATE TABLE IF NOT EXISTS vehicle_platform (
+    vehicle_platform_id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    -- Identifiers
+    platform_car_id TEXT NOT NULL,          -- Mongo Car._id
+    vin TEXT,                               -- Tesla VIN
+    tesla_vehicle_id TEXT,                  -- Tesla vehicle id
+
+    -- Display (management UI)
+    model TEXT,                            
+    model_year INTEGER,                    
+    trim TEXT,                              
+
+    -- Rental availability (from platform)
+    is_available INTEGER NOT NULL DEFAULT 0,     -- 0/1 from platform isAvaliable
+    platform_updated_at TEXT,                    
+
+    -- Management lifecycle
+    vehicle_status TEXT NOT NULL DEFAULT 'Active'
+        CHECK (vehicle_status IN ('Active','Archived')),
+
+    -- Sync metadata
+    last_sync_at TEXT NOT NULL,              
+    last_seen_at TEXT NOT NULL,              
+
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_vehicle_platform_platform_car_id
+ON vehicle_platform(platform_car_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_vehicle_platform_vin
+ON vehicle_platform(vin)
+WHERE vin IS NOT NULL AND vin <> '';
+
+CREATE INDEX IF NOT EXISTS idx_vehicle_platform_status
+ON vehicle_platform(vehicle_status);
+
+CREATE INDEX IF NOT EXISTS idx_vehicle_platform_last_seen
+ON vehicle_platform(last_seen_at);

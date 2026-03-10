@@ -33,8 +33,8 @@ Mongoori - Vehicle List
 
             <tbody>
                 {% for v in vehicles %}
-                <tr data-id="{{ v.vehicle_id }}" data-vin="{{ v.vin }}" data-plate="{{ v.plate_number }}"
-                    data-location-name="{{ v.operation_location_name or 'Unassigned' }}" data-location-id="{{ v.operation_location_id or '' }}" style="cursor:pointer;">
+                <tr data-vehicle-platform-id="{{ v.vehicle_platform_id }}" data-vin="{{ v.vin }}" data-plate="{{ v.plate_number }}"
+                    style="cursor:pointer;">
                     <td>{{v.plate_number}}</td>
                     <td>{{v.vin}}</td>
                     <td>{{v.model}}</td>
