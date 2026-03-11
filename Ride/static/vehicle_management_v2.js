@@ -320,20 +320,56 @@ $(document).ready(async function () {
     modal.show();
   });
 
-  $(document).on("click", ".actEditPlate", async function (e) {
+  $(document).on("click", ".actEditPlate", function (e) {
     e.stopPropagation();
+    console.log("Edit Plate clicked");
 
     const vehiclePlatformId = $(this).data("id");
     const currentPlate = $(this).data("plate") || "";
+    console.log("vehiclePlatformId:", vehiclePlatformId);
+    console.log("currentPlate:", currentPlate);
+
+    if (!vehiclePlatformId) {
+      console.log("No vehiclePlatformId");
+      return;
+    }
+
+    const modalEl = document.getElementById("editPlateModal");
+    console.log("modalEl:", modalEl);
+
+    if (!modalEl) {
+      console.log("No modal element");
+      return;
+    }
+
+    $("#editPlateVehiclePlatformId").val(vehiclePlatformId);
+    $("#currentPlateNumber").val(currentPlate);
+    $("#newPlateNumber").val(currentPlate);
+
+    console.log("About to show modal");
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+    console.log("Modal show called");
+  });
+
+  $(document).on("click", "#savePlateBtn", async function () {
+    const vehiclePlatformId = $("#editPlateVehiclePlatformId").val();
+    const newPlate = ($("#newPlateNumber").val() || "").trim();
+
+    console.log("savePlate clicked");
+    console.log("vehiclePlatformId:", vehiclePlatformId);
+    console.log("newPlate:", newPlate);
 
     if (!vehiclePlatformId) return;
 
-    const newPlate = prompt("Enter plate number", currentPlate);
-    if (newPlate === null) return;
-
     try {
-      await updatePlate(vehiclePlatformId, newPlate.trim());
+      await updatePlate(vehiclePlatformId, newPlate);
       await reloadVehicleTable();
+
+      const modalEl = document.getElementById("editPlateModal");
+      const modal = bootstrap.Modal.getInstance(modalEl);
+      if (modal) modal.hide();
+
       alert("Plate updated successfully");
     } catch (err) {
       alert(err.message || "Failed to update plate");

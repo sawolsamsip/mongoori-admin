@@ -1,6 +1,6 @@
 import os
 import requests
-from flask import Blueprint, jsonify, session
+from flask import Blueprint, jsonify, session, request
 from db import get_conn
 
 management_api_bp = Blueprint("management_api", __name__, url_prefix="/api/management")
@@ -29,7 +29,6 @@ def sync_company_cars():
                 skipped_count += 1
                 continue
 
-            # 기존 존재 여부 확인
             cur.execute(
                 "SELECT vehicle_platform_id FROM vehicle_platform WHERE platform_car_id = ?",
                 (platform_car_id,)
@@ -155,6 +154,39 @@ def get_company_cars():
             })
 
         return jsonify(success=True, cars=cars)
+
+    except Exception as e:
+        return jsonify(success=False, message=str(e)), 500
+    
+@management_api_bp.put("/cars/<int:vehicle_platform_id>/plate")
+def update_car_plate(vehicle_platform_id):
+    try:
+        data = request.get_json() or {}
+        plate_number = (data.get("plate_number") or "").strip()
+
+        conn = get_conn()
+        cur = conn.cursor()
+
+        cur.execute("""
+            UPDATE vehicle_platform
+            SET plate_number = ?,
+                updated_at = datetime('now')
+            WHERE vehicle_platform_id = ?
+        """, (
+            plate_number if plate_number else None,
+            vehicle_platform_id
+        ))
+
+        if cur.rowcount == 0:
+            return jsonify(success=False, message="Vehicle not found"), 404
+
+        conn.commit()
+
+        return jsonify(
+            success=True,
+            vehicle_platform_id=vehicle_platform_id,
+            plate_number=plate_number if plate_number else None
+        )
 
     except Exception as e:
         return jsonify(success=False, message=str(e)), 500
