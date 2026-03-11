@@ -23,7 +23,7 @@ Mongoori - Vehicle List
   </div>
 
   <div class="card-body">
-    <table id="vehicleTableV2" class="table table-bordered table-hover">
+    <table id="vehicleTable" class="table table-bordered table-hover">
       <thead>
         <tr>
           <th>Plate</th>
@@ -41,8 +41,11 @@ Mongoori - Vehicle List
   </div>
 </div>
 
+{% include "finance/vehicle_finance.html" %}
+
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='finance_management/finance_management.js') }}"></script>
 <script src="{{ url_for('static', filename='vehicle_management_v2.js') }}"></script>
 {% endblock %}
