@@ -30,8 +30,8 @@ async function syncCompanyCars() {
   return data;
 }
 
-async function updatePlate(vehiclePlatformId, plateNumber) {
-  const res = await fetch(`/api/management/cars/${vehiclePlatformId}/plate`, {
+async function updatePlate(vehicleId, plateNumber) {
+  const res = await fetch(`/api/management/cars/${vehicleId}/plate`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json"
@@ -73,9 +73,6 @@ function renderStatusBadge(status) {
   if (status === "Active") {
     return `<span class="badge bg-success">Active</span>`;
   }
-  if (status === "Maintenance") {
-    return `<span class="badge bg-warning text-dark">Maintenance</span>`;
-  }
   if (status === "Archived") {
     return `<span class="badge bg-dark">Archived</span>`;
   }
@@ -103,7 +100,7 @@ function buildSyncMessage(result) {
 }
 
 function buildActionHtml(rowData) {
-  const vehiclePlatformId = rowData.vehicle_platform_id;
+  const vehicleId = rowData.vehicle_id;
   const vin = rowData.vin || "";
   const plate = rowData.plate_number || "";
 
@@ -111,7 +108,7 @@ function buildActionHtml(rowData) {
     <div class="d-flex gap-3 py-2">
       <button
         class="btn btn-sm btn-outline-secondary actManageFinance"
-        data-id="${escapeHtml(vehiclePlatformId)}"
+        data-id="${escapeHtml(vehicleId)}"
         data-vin="${escapeHtml(vin)}"
         data-plate="${escapeHtml(plate)}"
       >
@@ -120,7 +117,7 @@ function buildActionHtml(rowData) {
 
       <button
         class="btn btn-sm btn-outline-primary actEditPlate"
-        data-id="${escapeHtml(vehiclePlatformId)}"
+        data-id="${escapeHtml(vehicleId)}"
         data-plate="${escapeHtml(plate)}"
       >
         Edit Plate
@@ -211,7 +208,7 @@ function initVehicleTable(cars) {
     order: [[0, "asc"]],
 
     createdRow: function (row, data) {
-      row.dataset.vehiclePlatformId = data.vehicle_platform_id || "";
+      row.dataset.vehicleId = data.vehicle_id || "";
       row.dataset.vin = data.vin || "";
       row.dataset.plate = data.plate_number || "";
       row.style.cursor = "pointer";
@@ -292,16 +289,16 @@ $(document).ready(async function () {
   $(document).on("click", ".actManageFinance", function (e) {
     e.stopPropagation();
 
-    const vehiclePlatformId = $(this).data("id");
+    const vehicleId = $(this).data("id");
     const vin = $(this).data("vin");
     const plate = $(this).data("plate");
 
-    if (!vehiclePlatformId) return;
+    if (!vehicleId) return;
 
     const modalEl = document.getElementById("manageFinanceModal");
     if (!modalEl) return;
 
-    $(modalEl).data("vehiclePlatformId", vehiclePlatformId);
+    $(modalEl).data("vehicleId", vehicleId);
 
     $("#mfVin").text(vin || "-");
     $("#mfPlate").text(plate || "-");
@@ -322,48 +319,31 @@ $(document).ready(async function () {
 
   $(document).on("click", ".actEditPlate", function (e) {
     e.stopPropagation();
-    console.log("Edit Plate clicked");
 
-    const vehiclePlatformId = $(this).data("id");
+    const vehicleId = $(this).data("id");
     const currentPlate = $(this).data("plate") || "";
-    console.log("vehiclePlatformId:", vehiclePlatformId);
-    console.log("currentPlate:", currentPlate);
 
-    if (!vehiclePlatformId) {
-      console.log("No vehiclePlatformId");
-      return;
-    }
+    if (!vehicleId) return;
 
     const modalEl = document.getElementById("editPlateModal");
-    console.log("modalEl:", modalEl);
+    if (!modalEl) return;
 
-    if (!modalEl) {
-      console.log("No modal element");
-      return;
-    }
-
-    $("#editPlateVehiclePlatformId").val(vehiclePlatformId);
+    $("#editPlateVehicleId").val(vehicleId);
     $("#currentPlateNumber").val(currentPlate);
     $("#newPlateNumber").val(currentPlate);
 
-    console.log("About to show modal");
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     modal.show();
-    console.log("Modal show called");
   });
 
   $(document).on("click", "#savePlateBtn", async function () {
-    const vehiclePlatformId = $("#editPlateVehiclePlatformId").val();
+    const vehicleId = $("#editPlateVehicleId").val();
     const newPlate = ($("#newPlateNumber").val() || "").trim();
 
-    console.log("savePlate clicked");
-    console.log("vehiclePlatformId:", vehiclePlatformId);
-    console.log("newPlate:", newPlate);
-
-    if (!vehiclePlatformId) return;
+    if (!vehicleId) return;
 
     try {
-      await updatePlate(vehiclePlatformId, newPlate);
+      await updatePlate(vehicleId, newPlate);
       await reloadVehicleTable();
 
       const modalEl = document.getElementById("editPlateModal");

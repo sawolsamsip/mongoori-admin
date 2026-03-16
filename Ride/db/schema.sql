@@ -1,55 +1,108 @@
-PRAGMA journal_mode=WAL;
+PRAGMA journal_mode = WAL;
+PRAGMA foreign_keys = ON;
 
+-- Admin
 CREATE TABLE IF NOT EXISTS admin_user (
     admin_id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Vehicle (platform-based canonical vehicle table)
 CREATE TABLE IF NOT EXISTS vehicle (
     vehicle_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    vin TEXT NOT NULL UNIQUE CHECK(length(vin) = 17),
-    make TEXT,
+
+    -- External/platform identifiers
+    platform_car_id TEXT NOT NULL,          -- Mongo Car._id
+    vin TEXT,                               -- Tesla VIN
+    tesla_vehicle_id TEXT,                  -- Tesla vehicle id
+    plate_number TEXT,
+
+    -- Display fields for management UI
     model TEXT,
     model_year INTEGER,
     trim TEXT,
-    exterior TEXT,
-    interior TEXT,
-    plate_number TEXT,
-    mileage INTEGER,
-    software TEXT,
 
-    vehicle_status TEXT NOT NULL 
-        CHECK(vehicle_status IN ('Active', 'Maintenance', 'Archived')),
+    -- Platform state
+    is_available INTEGER NOT NULL DEFAULT 0
+        CHECK (is_available IN (0, 1)),
+    platform_updated_at TEXT,
 
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    -- Management lifecycle
+    vehicle_status TEXT NOT NULL DEFAULT 'Active'
+        CHECK (vehicle_status IN ('Active', 'Archived')),
+
+    -- Sync metadata
+    last_sync_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_vehicle_platform_car_id
+ON vehicle(platform_car_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_vehicle_vin
+ON vehicle(vin)
+WHERE vin IS NOT NULL AND vin <> '';
+
+CREATE INDEX IF NOT EXISTS idx_vehicle_status
+ON vehicle(vehicle_status);
+
+CREATE INDEX IF NOT EXISTS idx_vehicle_last_seen
+ON vehicle(last_seen_at);
+
+CREATE INDEX IF NOT EXISTS idx_vehicle_plate_number
+ON vehicle(plate_number);
+
+CREATE INDEX IF NOT EXISTS idx_vehicle_is_available
+ON vehicle(is_available);
+
+-- Warranty
 CREATE TABLE IF NOT EXISTS warranty_type (
     warranty_type_id INTEGER PRIMARY KEY AUTOINCREMENT,
     type_name TEXT NOT NULL UNIQUE,
     display_name TEXT NOT NULL,
-    category TEXT NOT NULL CHECK(category IN ('purchase', 'subscription')),
+    category TEXT NOT NULL
+        CHECK (category IN ('purchase', 'subscription')),
     sort_order INTEGER NOT NULL DEFAULT 100,
     is_active INTEGER NOT NULL DEFAULT 1
+        CHECK (is_active IN (0, 1))
 );
 
 CREATE TABLE IF NOT EXISTS vehicle_warranty (
     vehicle_warranty_id INTEGER PRIMARY KEY AUTOINCREMENT,
     vehicle_id INTEGER NOT NULL,
     warranty_type_id INTEGER NOT NULL,
-    category TEXT NOT NULL CHECK(category IN ('purchase', 'subscription')),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(vehicle_id) REFERENCES vehicle(vehicle_id) ON DELETE CASCADE,
-    FOREIGN KEY(warranty_type_id) REFERENCES warranty_type(warranty_type_id)
+    category TEXT NOT NULL
+        CHECK (category IN ('purchase', 'subscription')),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (vehicle_id)
+        REFERENCES vehicle(vehicle_id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (warranty_type_id)
+        REFERENCES warranty_type(warranty_type_id)
+        ON DELETE RESTRICT
 );
+
+CREATE INDEX IF NOT EXISTS idx_vehicle_warranty_vehicle
+ON vehicle_warranty(vehicle_id);
+
+CREATE INDEX IF NOT EXISTS idx_vehicle_warranty_type
+ON vehicle_warranty(warranty_type_id);
 
 CREATE TABLE IF NOT EXISTS warranty_purchase (
     vehicle_warranty_id INTEGER PRIMARY KEY,
     expire_date DATE,
     expire_miles INTEGER,
-    FOREIGN KEY(vehicle_warranty_id) REFERENCES vehicle_warranty(vehicle_warranty_id) ON DELETE CASCADE
+
+    FOREIGN KEY (vehicle_warranty_id)
+        REFERENCES vehicle_warranty(vehicle_warranty_id)
+        ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS warranty_subscription (
@@ -57,108 +110,16 @@ CREATE TABLE IF NOT EXISTS warranty_subscription (
     start_date DATE,
     end_date DATE,
     monthly_cost REAL,
-    FOREIGN KEY(vehicle_warranty_id) REFERENCES vehicle_warranty(vehicle_warranty_id) ON DELETE CASCADE
+
+    CHECK (end_date IS NULL OR start_date IS NULL OR end_date >= start_date),
+
+    FOREIGN KEY (vehicle_warranty_id)
+        REFERENCES vehicle_warranty(vehicle_warranty_id)
+        ON DELETE CASCADE
 );
-
-CREATE TABLE IF NOT EXISTS colors (
-    color_id INTEGER PRIMARY KEY,
-    color_name TEXT UNIQUE NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS color_group (
-    group_id INTEGER,
-    color_id INTEGER,
-    FOREIGN KEY(color_id) REFERENCES colors(color_id),
-    UNIQUE(group_id, color_id)
-);
-
-CREATE TABLE IF NOT EXISTS model_year_trim_exterior (
-    dyt_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    model_name TEXT NOT NULL,
-    "year" INTEGER NOT NULL,
-    trim_name TEXT NOT NULL,
-    color_group INTEGER NOT NULL,
-    sort_order INTEGER NOT NULL,
-    UNIQUE (model_name, "year", trim_name, color_group)
-);
-
-CREATE TABLE IF NOT EXISTS interior (
-    interior_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    interior_name TEXT UNIQUE NOT NULL
-);
-
--- Parking lots
-CREATE TABLE IF NOT EXISTS parking_lot (
-    parking_lot_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-
-    address_line1 TEXT NOT NULL,
-    city TEXT NOT NULL,
-    state TEXT NOT NULL,
-    zip_code TEXT,
-
-    status TEXT NOT NULL
-        CHECK (status IN ('active', 'inactive'))
-        DEFAULT 'active',
-
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT,
-
-    UNIQUE (address_line1, city, state)
-);
-
-
-CREATE TABLE IF NOT EXISTS vehicle_parking (
-    vehicle_parking_id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-    vehicle_id INTEGER NOT NULL,
-    parking_lot_id INTEGER NOT NULL,
-
-    parking_from DATE NOT NULL,
-    parking_to   DATE,
-
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (vehicle_id)
-        REFERENCES vehicle(vehicle_id) ON DELETE RESTRICT,
-
-    FOREIGN KEY (parking_lot_id)
-        REFERENCES parking_lot(parking_lot_id) ON DELETE RESTRICT,
-
-    CHECK (
-        parking_to IS NULL
-        OR parking_to >= parking_from
-    )
-);
-
-CREATE UNIQUE INDEX uniq_vehicle_active_parking
-ON vehicle_parking(vehicle_id)
-WHERE parking_to IS NULL;
-
--- Operation location
-CREATE TABLE IF NOT EXISTS vehicle_operation_location (
-    vehicle_operation_location_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    vehicle_id INTEGER NOT NULL,
-    parking_lot_id INTEGER NOT NULL,
-    active_from DATE NOT NULL,
-    active_to DATE,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (vehicle_id) REFERENCES vehicle(vehicle_id),
-    FOREIGN KEY (parking_lot_id) REFERENCES parking_lot(parking_lot_id),
-
-    CHECK (active_to IS NULL OR active_to >= active_from)
-);
-
-CREATE UNIQUE INDEX uniq_vehicle_active_operation_location
-ON vehicle_operation_location(vehicle_id)
-WHERE active_to IS NULL;
-
-
 
 -- Fleet
--- Fleet Service
-CREATE TABLE fleet_service (
+CREATE TABLE IF NOT EXISTS fleet_service (
     fleet_service_id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE
 );
@@ -174,33 +135,39 @@ CREATE TABLE IF NOT EXISTS vehicle_fleet (
 
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (vehicle_id)
-        REFERENCES vehicle(vehicle_id)
-        ON DELETE CASCADE,
-
-    FOREIGN KEY (fleet_service_id)
-        REFERENCES fleet_service(fleet_service_id)
-        ON DELETE RESTRICT,
-
     CHECK (
         registered_to IS NULL
         OR registered_to >= registered_from
-    )
+    ),
+
+    FOREIGN KEY (vehicle_id)
+        REFERENCES vehicle(vehicle_id)
+        ON DELETE RESTRICT,
+
+    FOREIGN KEY (fleet_service_id)
+        REFERENCES fleet_service(fleet_service_id)
+        ON DELETE RESTRICT
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_vehicle_active_fleet
 ON vehicle_fleet(vehicle_id, fleet_service_id)
 WHERE registered_to IS NULL;
 
--- Finance
+CREATE INDEX IF NOT EXISTS idx_vehicle_fleet_vehicle
+ON vehicle_fleet(vehicle_id);
 
--- finance_category
+CREATE INDEX IF NOT EXISTS idx_vehicle_fleet_service
+ON vehicle_fleet(fleet_service_id);
+
+-- Finance category
 CREATE TABLE IF NOT EXISTS finance_management_category (
     category_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
     name TEXT NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ('cost','revenue')),
-    scope TEXT NOT NULL CHECK (scope IN ('vehicle')),
+    type TEXT NOT NULL
+        CHECK (type IN ('cost', 'revenue')),
+    scope TEXT NOT NULL
+        CHECK (scope IN ('vehicle')),
 
     description TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -212,8 +179,10 @@ CREATE TABLE IF NOT EXISTS finance_operation_category (
     category_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
     name TEXT NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ('cost','revenue')),
-    scope TEXT NOT NULL CHECK (scope IN ('vehicle','fleet','global')),
+    type TEXT NOT NULL
+        CHECK (type IN ('cost', 'revenue')),
+    scope TEXT NOT NULL
+        CHECK (scope IN ('vehicle', 'fleet', 'global')),
 
     description TEXT,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -221,8 +190,7 @@ CREATE TABLE IF NOT EXISTS finance_operation_category (
     UNIQUE (name, scope)
 );
 
-
--- finance_transaction
+-- Finance management transaction
 CREATE TABLE IF NOT EXISTS finance_management_transaction (
     management_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
@@ -230,13 +198,13 @@ CREATE TABLE IF NOT EXISTS finance_management_transaction (
     category_id INTEGER NOT NULL,
 
     payment_type TEXT NOT NULL
-        CHECK (payment_type IN ('one_time','monthly','installment')),
+        CHECK (payment_type IN ('one_time', 'monthly', 'installment')),
 
     event_date DATE NOT NULL,
-    
+
     start_date DATE,
     end_date DATE,
-    
+
     total_amount REAL,
     monthly_amount REAL,
     months INTEGER,
@@ -252,13 +220,15 @@ CREATE TABLE IF NOT EXISTS finance_management_transaction (
 
     CHECK (
         (payment_type = 'one_time' AND total_amount IS NOT NULL)
-        OR (payment_type = 'monthly' AND monthly_amount IS NOT NULL AND start_date IS NOT NULL)
-        OR (payment_type = 'installment' AND total_amount IS NOT NULL AND months IS NOT NULL AND start_date IS NOT NULL)
+        OR
+        (payment_type = 'monthly' AND monthly_amount IS NOT NULL AND start_date IS NOT NULL)
+        OR
+        (payment_type = 'installment' AND total_amount IS NOT NULL AND months IS NOT NULL AND start_date IS NOT NULL)
     ),
 
     FOREIGN KEY (vehicle_id)
         REFERENCES vehicle(vehicle_id)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
 
     FOREIGN KEY (category_id)
         REFERENCES finance_management_category(category_id)
@@ -268,12 +238,18 @@ CREATE TABLE IF NOT EXISTS finance_management_transaction (
 CREATE INDEX IF NOT EXISTS idx_mgmt_tx_vehicle_date
 ON finance_management_transaction(vehicle_id, event_date);
 
+CREATE INDEX IF NOT EXISTS idx_mgmt_tx_event_date
+ON finance_management_transaction(event_date);
+
+CREATE INDEX IF NOT EXISTS idx_mgmt_tx_category
+ON finance_management_transaction(category_id);
+
+-- Finance operation transaction
 CREATE TABLE IF NOT EXISTS finance_operation_transaction (
     finance_id INTEGER PRIMARY KEY AUTOINCREMENT,
 
     vehicle_id INTEGER,
     fleet_service_id INTEGER,
-
     category_id INTEGER NOT NULL,
 
     amount REAL NOT NULL,
@@ -281,7 +257,6 @@ CREATE TABLE IF NOT EXISTS finance_operation_transaction (
 
     note TEXT,
     reference_id TEXT,
-
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (vehicle_id)
@@ -297,65 +272,14 @@ CREATE TABLE IF NOT EXISTS finance_operation_transaction (
         ON DELETE RESTRICT
 );
 
-
-CREATE INDEX IF NOT EXISTS idx_tx_vehicle
+CREATE INDEX IF NOT EXISTS idx_op_tx_vehicle
 ON finance_operation_transaction(vehicle_id);
 
-CREATE INDEX IF NOT EXISTS idx_tx_fleet
+CREATE INDEX IF NOT EXISTS idx_op_tx_fleet
 ON finance_operation_transaction(fleet_service_id);
 
-CREATE INDEX IF NOT EXISTS idx_tx_date
+CREATE INDEX IF NOT EXISTS idx_op_tx_date
 ON finance_operation_transaction(transaction_date);
 
-CREATE INDEX idx_mgmt_tx_date
-ON finance_management_transaction(transaction_date);
-
-CREATE INDEX idx_mgmt_contract_vehicle
-ON finance_management_contract(vehicle_id);
-
-
-
-
--- V2 platform integration
-
-CREATE TABLE IF NOT EXISTS vehicle_platform (
-    vehicle_platform_id INTEGER PRIMARY KEY AUTOINCREMENT,
-
-    -- Identifiers
-    platform_car_id TEXT NOT NULL,          -- Mongo Car._id
-    vin TEXT,                               -- Tesla VIN
-    tesla_vehicle_id TEXT,                  -- Tesla vehicle id
-
-    -- Display (management UI)
-    model TEXT,                            
-    model_year INTEGER,                    
-    trim TEXT,                              
-
-    -- Rental availability (from platform)
-    is_available INTEGER NOT NULL DEFAULT 0,     -- 0/1 from platform isAvaliable
-    platform_updated_at TEXT,                    
-
-    -- Management lifecycle
-    vehicle_status TEXT NOT NULL DEFAULT 'Active'
-        CHECK (vehicle_status IN ('Active','Archived')),
-
-    -- Sync metadata
-    last_sync_at TEXT NOT NULL,              
-    last_seen_at TEXT NOT NULL,              
-
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS uniq_vehicle_platform_platform_car_id
-ON vehicle_platform(platform_car_id);
-
-CREATE UNIQUE INDEX IF NOT EXISTS uniq_vehicle_platform_vin
-ON vehicle_platform(vin)
-WHERE vin IS NOT NULL AND vin <> '';
-
-CREATE INDEX IF NOT EXISTS idx_vehicle_platform_status
-ON vehicle_platform(vehicle_status);
-
-CREATE INDEX IF NOT EXISTS idx_vehicle_platform_last_seen
-ON vehicle_platform(last_seen_at);
+CREATE INDEX IF NOT EXISTS idx_op_tx_category
+ON finance_operation_transaction(category_id);
