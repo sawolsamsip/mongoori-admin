@@ -10,6 +10,11 @@ Mongoori - Vehicle List
     <!-- Card header -->
     <div class="card-header">
         <h3 class="card-title">Vehicle Operation</h3>
+        <div class="card-tools">
+            <button id="pullFinanceBtn" class="btn btn-success btn-sm">
+                ↻ Pull Finance from Platform
+            </button>
+        </div>
     </div>
     
     <div class="card-body">
@@ -17,37 +22,23 @@ Mongoori - Vehicle List
         <table id = "vehicleTable" class="table table-bordered table-hover">
             <thead>
                 <tr>
-                    <th>Location</th>
                     <th>Plate</th>
                     <th>VIN</th>
                     <th>Model</th>
                     <th>Year</th>
                     <th>Trim</th>
-
-                    <th>Addr1</th>
-                    <th>City</th>
-                    <th>State</th>
-                    <th>Zip</th>
-                    
                     <th>Operation Status</th>
                 </tr>
             </thead>
 
             <tbody>
                 {% for v in vehicles %}
-                <tr data-id="{{ v.vehicle_id }}" data-vin="{{ v.vin }}" data-plate="{{ v.plate_number }}"
-                    data-location-name="{{ v.operation_location_name or 'Unassigned' }}" data-location-id="{{ v.operation_location_id or '' }}" style="cursor:pointer;">
-                    <td class="col-location">{{ v.operation_location_name or 'Unassigned' }}</td>
+                <tr data-id="{{ v.vehicle_id }}" data-vin="{{ v.vin }}" data-plate="{{ v.plate_number }}" style="cursor:pointer;">
                     <td>{{ v.plate_number }}</td>
                     <td>{{ v.vin }}</td>
                     <td>{{ v.model }}</td>
                     <td>{{ v.model_year }}</td>
                     <td>{{ v.trim }}</td>
-
-                    <td>{{ v.address_line1 }}</td>
-                    <td>{{ v.city }}</td>
-                    <td>{{ v.state }}</td>
-                    <td>{{ v.zip_code }}</td>
                     <td>{{ v.operation_status }}</td>
                 </tr>
                 {% endfor %}

@@ -194,6 +194,51 @@ $(document).on('click', '#saveOpRevenueBtn', async function () {
 });
 
 
+/* Platform Finance Sync */
+async function syncPlatformFinance() {
+  const res = await fetch('/api/management/finance/sync', {
+    method: 'POST',
+    credentials: 'same-origin'
+  });
+
+  const data = await res.json();
+
+  if (!data.success) {
+    throw new Error(data.message || 'Failed to sync finance');
+  }
+
+  return data;
+}
+
+function buildFinanceSyncMessage(result) {
+  const fetched = result.fetched ?? 0;
+  const synced = result.synced ?? 0;
+  const skippedNoVehicle = result.skipped_no_vehicle ?? 0;
+  const skippedDuplicate = result.skipped_duplicate ?? 0;
+
+  return [
+    `Fetched: ${fetched}`,
+    `Synced: ${synced}`,
+    `Skipped (no vehicle): ${skippedNoVehicle}`,
+    `Skipped (duplicate): ${skippedDuplicate}`
+  ].join('\n');
+}
+
+$(document).on('click', '#pullFinanceBtn', async function () {
+  const btn = document.getElementById('pullFinanceBtn');
+  if (btn) btn.disabled = true;
+
+  try {
+    const result = await syncPlatformFinance();
+    alert(`Finance sync complete\n\n${buildFinanceSyncMessage(result)}`);
+  } catch (e) {
+    alert(e.message || 'Failed to sync finance');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+});
+
+
 /* Reset */
 function resetOperationCostForm() {
   $('#opCostCategory').val('');

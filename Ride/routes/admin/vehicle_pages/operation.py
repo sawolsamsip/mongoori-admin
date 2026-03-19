@@ -24,13 +24,6 @@ def vehicle_list_page():
                     v.model_year,
                     v.trim,
 
-                    pl.parking_lot_id AS operation_location_id,
-                    pl.name AS operation_location_name,
-                    pl.address_line1,
-                    pl.city,
-                    pl.state,
-                    pl.zip_code,
-
                     CASE
                         WHEN EXISTS (
                             SELECT 1
@@ -44,16 +37,9 @@ def vehicle_list_page():
 
                 FROM vehicle v
 
-                LEFT JOIN vehicle_operation_location vol
-                    ON v.vehicle_id = vol.vehicle_id
-                    AND vol.active_to IS NULL
-
-                LEFT JOIN parking_lot pl
-                    ON vol.parking_lot_id = pl.parking_lot_id
-                
                 WHERE v.vehicle_status = 'Active'
 
-                ORDER BY operation_location_name IS NULL, operation_location_name;
+                ORDER BY v.vehicle_id;
                 """)
     vehicles = cur.fetchall()
     

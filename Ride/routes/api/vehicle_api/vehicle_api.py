@@ -259,9 +259,6 @@ def get_vehicle(vehicle_id):
             v.model_year,
             v.trim,
 
-            pl.parking_lot_id,
-            pl.name AS operation_location_name,
-
             CASE
                 WHEN EXISTS (
                     SELECT 1
@@ -274,13 +271,6 @@ def get_vehicle(vehicle_id):
             END AS operation_status
 
         FROM vehicle v
-
-        LEFT JOIN vehicle_operation_location vol
-            ON v.vehicle_id = vol.vehicle_id
-            AND vol.active_to IS NULL
-
-        LEFT JOIN parking_lot pl
-            ON vol.parking_lot_id = pl.parking_lot_id
 
         WHERE v.vehicle_id = ?
     """, (vehicle_id,))
@@ -299,12 +289,6 @@ def get_vehicle(vehicle_id):
             "model_year": row["model_year"],
             "trim": row["trim"],
             "operation_status": row["operation_status"],
-            "operation_location": (
-                {
-                    "parking_lot_id": row["parking_lot_id"],
-                    "name": row["operation_location_name"]
-                } if row["parking_lot_id"] else None
-            )
         }
     )
 
@@ -398,80 +382,3 @@ def get_vehicle_fleets(vehicle_id):
     ), 200
 
 
-####
-## set location for a vehicle
-@vehicle_api_bp.route("/<int:vehicle_id>/location", methods=["POST"])
-def set_vehicle_parking(vehicle_id):
-    if not session.get("admin_logged_in"):
-        return jsonify(success=False, message="Unauthorized"), 401
-
-    data = request.get_json() or {}
-
-    parking_lot_id = data.get("parking_lot_id")   # int | None
-    active_from = data.get("active_from") or get_pacific_time()
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    try:
-        # get current active location
-        cur.execute("""
-            SELECT vehicle_operation_location_id, parking_lot_id
-            FROM vehicle_operation_location
-            WHERE vehicle_id = ?
-              AND active_to IS NULL
-        """, (vehicle_id,))
-        current = cur.fetchone()
-
-        ## current lcoation == new location: return
-        if current and current["parking_lot_id"] == parking_lot_id:
-            return jsonify(
-                success=True,
-                message="Location unchanged",
-                parking_lot_id=parking_lot_id
-            ), 200
-        
-
-        ## close current location
-        if current:
-            cur.execute("""
-                UPDATE vehicle_operation_location
-                SET active_to = ?
-                WHERE vehicle_operation_location_id = ?
-            """, (active_from, current["vehicle_operation_location_id"]))   
-
-        # assign new parking lot
-        if parking_lot_id is not None:
-            cur.execute("""
-                INSERT INTO vehicle_operation_location
-                (vehicle_id, parking_lot_id, active_from)
-                VALUES (?, ?, ?)
-            """, (vehicle_id, parking_lot_id, active_from))
-
-        # return parking lot name (for return data)
-        parking_lot_name = None
-        if parking_lot_id is not None:
-            cur.execute("""
-                SELECT name
-                FROM parking_lot
-                WHERE parking_lot_id = ?
-            """, (parking_lot_id,))
-            row = cur.fetchone()
-            parking_lot_name = row["name"] if row else None
-
-        conn.commit()
-
-        return jsonify(
-            success=True,
-            message="Location updated successfully",
-            parking_lot_id=parking_lot_id,
-            parking_lot_name=parking_lot_name or "Unassigned"
-        ), 200
-
-    except Exception as e:
-        conn.rollback()
-        return jsonify(
-            success=False,
-            message="Failed to update vehicle location",
-            error=str(e)
-        ), 500

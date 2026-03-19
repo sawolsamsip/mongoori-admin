@@ -6,9 +6,9 @@ $(document).ready(function () {
 
     columnDefs: [
         {
-            targets: 1, // Plate
+            targets: 0, // Plate
             render: function (data, type, row) {
-                const vin = row[2]; // VIN
+                const vin = row[1]; // VIN
 
                 if (type === 'display') {
                     return `
@@ -29,7 +29,7 @@ $(document).ready(function () {
         },
 
         {
-            targets: 10, // Operation Status
+            targets: 5, // Operation Status
             render: function (data, type) {
                 const v = (data || '').toString().trim().toUpperCase();
 
@@ -54,79 +54,29 @@ $(document).ready(function () {
         },
 
         {
-            targets: 2,
+            targets: 1, // VIN
             visible: false,
             searchable: true
-        },
-
-        { targets: 0, visible: false },
-        {
-            targets: [6, 7, 8, 9],   // Addr1, City, State, Zip
-            visible: false,
-            searchable: false,
-            orderable: false
         }
-        
+
     ],
-    
-    orderFixed: {
-        pre: [[0, 'asc']]
-      },
 
     order: [
-        [10, 'asc'], // Operation Status
-        [1, 'asc']  // Plate
+        [5, 'asc'], // Operation Status
+        [0, 'asc']  // Plate
         ],
-
-    rowGroup: {
-        dataSrc: 0,
-        startRender: function (rows, group) {
-            const name = group;
-
-            const firstRow = rows.data()[0];
-            const addr1 = firstRow[6];
-            const city  = firstRow[7];
-            const state = firstRow[8];
-            const zip   = firstRow[9];
-
-            const address = addr1
-            ? `${addr1}, ${city}, ${state} ${zip}`
-            : '';
-
-            console.log(addr1, city, state, zip);
-
-            return $('<tr class="group-row"/>')
-                .append(
-                `
-                <td colspan="11" class="bg-light fw-bold">
-                    <div class="d-flex flex-column">
-                        <div>
-                            <strong>${group || 'Unassigned'}</strong> (${rows.count()})
-                        </div>
-                        <div class="text-muted small">
-                            ${address}
-                        </div>
-                    </div>
-                </td>
-            `
-                );
-        }
-      }
-    
 
     });
 
     let openedActionRow = null;
 
     $('#vehicleTable tbody').on('click', 'tr', function(){
-        if ($(this).hasClass('group-row')) return;
-
         const vehicleId = $(this).data('id');
         const vin = $(this).data('vin');
         const plate = $(this).data('plate');
 
         if (!vehicleId) return;
-        
+
         const row = table.row(this);
 
         //toggle
@@ -140,18 +90,14 @@ $(document).ready(function () {
             openedActionRow.child.hide();
             openedActionRow = null;
         }
-        
+
         // add action row
-        
+
         const actionHtml = `
             <div class="d-flex gap-3 py-2">
-            
+
             <button class="btn btn-sm btn-outline-secondary actManageFleet" data-id="${vehicleId}" data-vin="${vin}" data-plate="${plate}">
                 Manage Fleet
-            </button>
-
-            <button class="btn btn-sm btn-outline-info actSetLocation" data-id="${vehicleId}">
-                Set Location
             </button>
 
             <button class="btn btn-sm btn-outline-success actManageOperationFinance"
@@ -161,7 +107,7 @@ $(document).ready(function () {
 
         </div>
         `;
-        
+
         row.child(actionHtml).show();
 
         openedActionRow = row;
@@ -198,19 +144,6 @@ $(document).ready(function () {
         modal.show();
     });
 
-    // set Location modal open
-    $(document).on('click', '.actSetLocation', function(){
-        const id = $(this).data('id');
-        if (!id) return;
-
-        const modalEl = document.getElementById('setLocationModal');
-        modalEl.dataset.vehicleId = id;
-
-        renderSetLocationForm(id);
-
-        const modal = new bootstrap.Modal(modalEl);
-        modal.show();
-    });
     //
     // Operation Finance Manage modal
     $(document).on('click', '.actManageOperationFinance', function () {
@@ -255,7 +188,7 @@ function onFleetChanged(vehicleId) {
     refreshVehicleRow(vehicleId, table);
 }
 
-// refresh vehicle row
+// refresh vehicle row operation_status after fleet change
 async function refreshVehicleRow(vehicleId, table) {
     const res = await fetch(`/api/vehicles/${vehicleId}`);
     const data = await res.json();
@@ -264,35 +197,13 @@ async function refreshVehicleRow(vehicleId, table) {
     const tr = $(`#vehicleTable tr[data-id="${vehicleId}"]`);
     if (!tr.length) return;
 
-    // location
-    const op = data.vehicle.operation_location;
-    const locationName = op?.name ?? 'Unassigned';
-
-    updateVehicleRow(tr, {
-        parking_lot_id: op?.parking_lot_id ?? null,
-        parking_lot_name: locationName
-    });
-
     const row = table.row(tr);
     const rowData = row.data();
 
-    rowData[0] = locationName; // location
-    rowData[6] = data.vehicle.operation_status; // status
+    rowData[5] = data.vehicle.operation_status; // Operation Status
 
     row.data(rowData);
 
     //redraw
     table.draw(false);
-}
-
-function updateVehicleRow(tr, payload) {
-    const locationId = payload.parking_lot_id ?? '';
-    const locationName = payload.parking_lot_name ?? 'Unassigned';
-
-    // source of truth
-    tr.data('location-id', locationId);
-    tr.data('location-name', locationName);
-
-    // view update only
-    tr.find('td.col-location').text(locationName);
 }
