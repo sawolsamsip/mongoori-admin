@@ -1,6 +1,6 @@
 import os
 import requests
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 from db import get_conn
 
 management_api_bp = Blueprint("management_api", __name__, url_prefix="/api/management")
@@ -100,6 +100,127 @@ def sync_company_cars():
             inserted=inserted_count,
             updated=updated_count,
             skipped=skipped_count
+        )
+
+    except Exception as e:
+        return jsonify(success=False, message=str(e)), 500
+
+
+@management_api_bp.post("/finance/sync")
+def sync_finance():
+    if not session.get("admin_logged_in"):
+        return jsonify(success=False, message="Unauthorized"), 401
+
+    try:
+        data = request.get_json() or {}
+        since = data.get("since")  # optional YYYY-MM-DD
+
+        conn = get_conn()
+        cur = conn.cursor()
+
+        # Step 1: Resolve category IDs by name (fail fast if seed data is missing)
+        cur.execute(
+            "SELECT category_id FROM finance_operation_category WHERE name = ? AND type = 'revenue'",
+            ("Rental Revenue",)
+        )
+        row = cur.fetchone()
+        if not row:
+            return jsonify(success=False, message="Category 'Rental Revenue' not found in finance_operation_category"), 500
+        rental_revenue_id = row["category_id"]
+
+        cur.execute(
+            "SELECT category_id FROM finance_operation_category WHERE name = ? AND type = 'cost'",
+            ("Platform Service Fee",)
+        )
+        row = cur.fetchone()
+        if not row:
+            return jsonify(success=False, message="Category 'Platform Service Fee' not found in finance_operation_category"), 500
+        platform_fee_id = row["category_id"]
+
+        # Step 2: Fetch invoices from platform
+        url = f"{PLATFORM_BASE}/api/admin/finance/invoices"
+        if since:
+            url += f"?since={since}"
+
+        r = requests.get(url, timeout=10)
+        r.raise_for_status()
+        invoices = r.json().get("invoices", [])
+
+        synced = 0
+        skipped_no_vehicle = 0
+        skipped_duplicate = 0
+
+        # Step 3: Process each invoice
+        for inv in invoices:
+            invoice_id = inv.get("invoiceId")
+            car_id = inv.get("carId")
+            invoice_number = inv.get("invoiceNumber", "")
+            owner_payout = inv.get("ownerPayoutAmount")
+            platform_fee = inv.get("platformFee") or 0
+            pickup_date = inv.get("pickupDate")
+
+            if not invoice_id or not car_id or not pickup_date or owner_payout is None:
+                continue
+
+            # a. Resolve vehicle_id from platform_car_id
+            cur.execute(
+                "SELECT vehicle_id FROM vehicle WHERE platform_car_id = ?",
+                (car_id,)
+            )
+            vehicle_row = cur.fetchone()
+            if not vehicle_row:
+                skipped_no_vehicle += 1
+                continue
+            vehicle_id = vehicle_row["vehicle_id"]
+
+            # b. Check for duplicate (revenue row reference_id = invoice_id)
+            cur.execute(
+                "SELECT 1 FROM finance_operation_transaction WHERE reference_id = ?",
+                (invoice_id,)
+            )
+            if cur.fetchone():
+                skipped_duplicate += 1
+                continue
+
+            # c. Insert revenue row
+            cur.execute("""
+                INSERT INTO finance_operation_transaction
+                    (vehicle_id, category_id, amount, transaction_date, reference_id, note)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                vehicle_id,
+                rental_revenue_id,
+                owner_payout,
+                pickup_date,
+                invoice_id,
+                f"Platform sync: {invoice_number}"
+            ))
+
+            # d. Insert cost row only when platformFee > 0
+            if platform_fee > 0:
+                cur.execute("""
+                    INSERT INTO finance_operation_transaction
+                        (vehicle_id, category_id, amount, transaction_date, reference_id, note)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    vehicle_id,
+                    platform_fee_id,
+                    platform_fee,
+                    pickup_date,
+                    f"{invoice_id}_fee",
+                    f"Platform sync: {invoice_number} platform fee"
+                ))
+
+            synced += 1
+
+        conn.commit()
+
+        return jsonify(
+            success=True,
+            fetched=len(invoices),
+            synced=synced,
+            skipped_no_vehicle=skipped_no_vehicle,
+            skipped_duplicate=skipped_duplicate
         )
 
     except Exception as e:
