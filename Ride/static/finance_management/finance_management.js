@@ -25,6 +25,13 @@ async function loadOwnershipCategories() {
     const costData = await costRes.json();
     const revenueData = await revenueRes.json();
 
+    if (!costRes.ok || !costData.success) {
+      throw new Error(costData.message || 'Failed to load cost categories');
+    }
+    if (!revenueRes.ok || !revenueData.success) {
+      throw new Error(revenueData.message || 'Failed to load revenue categories');
+    }
+
     costData.categories.forEach(c => {
       costSelect.append(`<option value="${c.category_id}">${c.name}</option>`);
     });

@@ -112,7 +112,7 @@ def sync_finance():
         return jsonify(success=False, message="Unauthorized"), 401
 
     try:
-        data = request.get_json() or {}
+        data = request.get_json(force=True, silent=True) or {}
         since = data.get("since")  # optional YYYY-MM-DD
 
         conn = get_conn()

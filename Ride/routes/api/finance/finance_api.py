@@ -21,36 +21,43 @@ def create_management_transaction(vehicle_id):
     data = request.get_json() or {}
 
     category_id = data.get("category_id")
+    payment_type = data.get("payment_type")
     amount = data.get("amount")
-    transaction_date = data.get("transaction_date")
+    event_date = data.get("transaction_date")  # frontend sends as transaction_date
     note = data.get("note")
 
-    if not category_id or not amount or not transaction_date:
+    if not category_id or not payment_type or not amount or not event_date:
         return jsonify(success=False, message="Missing required fields"), 400
 
     conn = get_conn()
     cur = conn.cursor()
 
-    cur.execute("""
-        INSERT INTO finance_management_transaction (
+    try:
+        cur.execute("""
+            INSERT INTO finance_management_transaction (
+                vehicle_id,
+                category_id,
+                payment_type,
+                event_date,
+                total_amount,
+                note
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
             vehicle_id,
             category_id,
+            payment_type,
+            event_date,
             amount,
-            transaction_date,
             note
-        )
-        VALUES (?, ?, ?, ?, ?)
-    """, (
-        vehicle_id,
-        category_id,
-        amount,
-        transaction_date,
-        note
-    ))
+        ))
 
-    conn.commit()
+        conn.commit()
 
-    return jsonify(success=True), 201
+        return jsonify(success=True), 201
+
+    except Exception as e:
+        return jsonify(success=False, message=str(e)), 500
 
 
 ## save cost/revenue from management page - monthly, installment
@@ -316,9 +323,9 @@ def get_finance_timeseries():
 
                 -- Management
                 SELECT
-                    mt.transaction_date AS tx_date,
-                    CASE WHEN mc.type='revenue' THEN mt.amount ELSE 0 END AS revenue,
-                    CASE WHEN mc.type='cost' THEN mt.amount ELSE 0 END AS expense
+                    mt.event_date AS tx_date,
+                    CASE WHEN mc.type='revenue' THEN mt.total_amount ELSE 0 END AS revenue,
+                    CASE WHEN mc.type='cost' THEN mt.total_amount ELSE 0 END AS expense
                 FROM finance_management_transaction mt
                 JOIN finance_management_category mc
                     ON mt.category_id = mc.category_id
@@ -412,9 +419,9 @@ def get_monthly_details():
                 UNION ALL
 
                 SELECT
-                    mt.transaction_date AS tx_date,
+                    mt.event_date AS tx_date,
                     mc.name AS category_name,
-                    mt.amount,
+                    mt.total_amount AS amount,
                     'management' AS source,
                     mc.type
                 FROM finance_management_transaction mt
