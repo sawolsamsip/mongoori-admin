@@ -1,11 +1,16 @@
 let financeChart;
+let rentalUtilizationChart;
+let rentalRentDaysChart;
+let rentalModelChart;
 
 document.addEventListener("DOMContentLoaded", () => {
 
     loadFinanceSeries();
+    loadRentalAnalytics();
 
     const switchEl = document.getElementById("dashboardModeSwitch");
     const windowSelect = document.getElementById("financeWindowSelect");
+    const rentalWindowSelect = document.getElementById("rentalWindowSelect");
 
     if (switchEl) {
         switchEl.addEventListener("change", loadFinanceSeries);
@@ -13,6 +18,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (windowSelect) {
         windowSelect.addEventListener("change", loadFinanceSeries);
+    }
+
+    if (rentalWindowSelect) {
+        rentalWindowSelect.addEventListener("change", loadRentalAnalytics);
     }
 });
 
@@ -213,4 +222,197 @@ function renderDetailModal(month, type, rows){
     new bootstrap.Modal(
         document.getElementById("financeDetailModal")
     ).show();
+}
+
+
+// ============================================================
+// Rental Analytics
+// ============================================================
+
+// ---- Fetch and dispatch ----
+async function loadRentalAnalytics() {
+    const windowSelect = document.getElementById("rentalWindowSelect");
+    const windowSize = windowSelect ? parseInt(windowSelect.value) : 12;
+
+    const res = await fetch(`/api/management/analytics/rental-usage?window=${windowSize}`);
+    const json = await res.json();
+    if (!json.success) return;
+
+    const labels = generateLastMonths(windowSize); // reuse existing helper
+
+    const monthlyNorm = normalizeRentalMonthly(json.monthly, labels);
+    const utilization = monthlyNorm.map(m => parseFloat((m.utilization * 100).toFixed(2)));
+    const rentDays    = monthlyNorm.map(m => m.rent_days);
+
+    renderRentalUtilizationChart(labels, utilization);
+    renderRentalRentDaysChart(labels, rentDays);
+    renderRentalModelChart(labels, json.by_model);
+}
+
+// ---- Normalize monthly array: fill missing months with 0 ----
+function normalizeRentalMonthly(monthly, labels) {
+    // Build a map from "YYYY-MM" to the monthly entry
+    const map = {};
+    (monthly || []).forEach(m => {
+        const key = `${m.year}-${String(m.month).padStart(2, '0')}`;
+        map[key] = m;
+    });
+
+    return labels.map(label => {
+        const entry = map[label];
+        return {
+            rent_days:      entry ? entry.rent_days      : 0,
+            available_days: entry ? entry.available_days : 0,
+            utilization:    entry ? entry.utilization    : 0,
+        };
+    });
+}
+
+// ---- Chart 1: Monthly Utilization (line) ----
+function renderRentalUtilizationChart(labels, utilization) {
+    const canvas = document.getElementById("rental-utilization-chart");
+    if (!canvas) return;
+
+    if (rentalUtilizationChart) rentalUtilizationChart.destroy();
+
+    rentalUtilizationChart = new Chart(canvas.getContext("2d"), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Utilization %',
+                data: utilization,
+                borderColor: 'rgba(23, 162, 184, 1)',
+                backgroundColor: 'rgba(23, 162, 184, 0.15)',
+                borderWidth: 2,
+                pointRadius: 4,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.dataset.label}: ${ctx.raw}%`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: v => `${v}%`
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ---- Chart 2: Monthly Rent Days (bar) ----
+function renderRentalRentDaysChart(labels, rentDays) {
+    const canvas = document.getElementById("rental-rent-days-chart");
+    if (!canvas) return;
+
+    if (rentalRentDaysChart) rentalRentDaysChart.destroy();
+
+    rentalRentDaysChart = new Chart(canvas.getContext("2d"), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Rent Days',
+                data: rentDays,
+                backgroundColor: 'rgba(40, 167, 69, 0.7)'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `Rent Days: ${ctx.raw}`
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: v => `${v}d`
+                    }
+                }
+            }
+        }
+    });
+}
+
+// ---- Chart 3: Monthly Rent Days by Model (stacked bar) ----
+// Rent days are additive per model, so stacking is correct and meaningful.
+function renderRentalModelChart(labels, byModel) {
+    const canvas = document.getElementById("rental-model-chart");
+    if (!canvas) return;
+
+    if (rentalModelChart) rentalModelChart.destroy();
+
+    // Extract unique models, sorted for stable output
+    const models = [...new Set((byModel || []).map(r => r.model))].sort();
+
+    // Build a lookup: "YYYY-MM|model" → rent_days
+    const lookup = {};
+    (byModel || []).forEach(r => {
+        const key = `${r.year}-${String(r.month).padStart(2, '0')}|${r.model}`;
+        lookup[key] = r.rent_days;
+    });
+
+    const palette = [
+        'rgba(54,  162, 235, 0.75)',
+        'rgba(255, 159,  64, 0.75)',
+        'rgba(153, 102, 255, 0.75)',
+        'rgba(255, 205,  86, 0.75)',
+        'rgba(75,  192, 192, 0.75)',
+        'rgba(255,  99, 132, 0.75)',
+        'rgba(201, 203, 207, 0.75)',
+    ];
+
+    const datasets = models.map((model, i) => ({
+        label: model,
+        data: labels.map(label => lookup[`${label}|${model}`] ?? 0),
+        backgroundColor: palette[i % palette.length],
+        stack: 'models'   // stacks all models into one bar per month
+    }));
+
+    rentalModelChart = new Chart(canvas.getContext("2d"), {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.dataset.label}: ${ctx.raw}d`
+                    }
+                }
+            },
+            scales: {
+                x: { stacked: true },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    ticks: {
+                        callback: v => `${v}d`
+                    }
+                }
+            }
+        }
+    });
 }

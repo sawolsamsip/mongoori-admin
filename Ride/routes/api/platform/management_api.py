@@ -314,3 +314,22 @@ def update_car_plate(vehicle_id):
 
     except Exception as e:
         return jsonify(success=False, message=str(e)), 500
+
+
+@management_api_bp.get("/analytics/rental-usage")
+def get_rental_usage_analytics():
+    if not session.get("admin_logged_in"):
+        return jsonify(success=False, message="Unauthorized"), 401
+
+    window = request.args.get("window", "12")
+
+    try:
+        r = requests.get(
+            f"{PLATFORM_BASE}/api/admin/analytics/rental-usage",
+            params={"window": window},
+            timeout=10
+        )
+        r.raise_for_status()
+        return jsonify(r.json())
+    except Exception as e:
+        return jsonify(success=False, message=str(e)), 500
