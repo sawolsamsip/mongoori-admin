@@ -1,7 +1,5 @@
 let financeChart;
-let rentalUtilizationChart;
-let rentalRentDaysChart;
-let rentalModelChart;
+let rentalAnalyticsData = null;
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -10,7 +8,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const switchEl = document.getElementById("dashboardModeSwitch");
     const windowSelect = document.getElementById("financeWindowSelect");
-    const rentalWindowSelect = document.getElementById("rentalWindowSelect");
 
     if (switchEl) {
         switchEl.addEventListener("change", loadFinanceSeries);
@@ -20,34 +17,47 @@ document.addEventListener("DOMContentLoaded", () => {
         windowSelect.addEventListener("change", loadFinanceSeries);
     }
 
-    if (rentalWindowSelect) {
-        rentalWindowSelect.addEventListener("change", loadRentalAnalytics);
-    }
+    document.addEventListener("click", e => {
+        const btn = e.target.closest(".ra-period-btn");
+        if (!btn) return;
+        document.querySelectorAll(".ra-period-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        renderRentalAnalytics(parseInt(btn.dataset.period));
+    });
 });
 
 async function loadFinanceSeries(){
+    try {
+        const switchEl = document.getElementById("dashboardModeSwitch");
+        const mode = switchEl && switchEl.checked ? "full" : "operation";
 
-    const switchEl = document.getElementById("dashboardModeSwitch");
-    const mode = switchEl && switchEl.checked ? "full" : "operation";
+        const windowSelect = document.getElementById("financeWindowSelect");
+        const windowSize = windowSelect ? parseInt(windowSelect.value) : 12;
 
-    const windowSelect = document.getElementById("financeWindowSelect");
-    const windowSize = windowSelect ? parseInt(windowSelect.value) : 12;
+        const res = await fetch(
+            `/api/finance/timeseries?window=${windowSize}&mode=${mode}`
+        );
 
-    const res = await fetch(
-        `/api/finance/timeseries?window=${windowSize}&mode=${mode}`
-    );
+        let json;
+        try {
+            json = await res.json();
+        } catch (_) {
+            return; // chart stays empty on parse error
+        }
 
-    const json = await res.json();
-    if(!json.success) return;
+        if(!json.success) return;
 
-    const normalized = normalizeFinanceSeries(json.data, windowSize);
+        const normalized = normalizeFinanceSeries(json.data, windowSize);
 
-    renderFinanceBarChart(
-        normalized.labels,
-        normalized.revenue,
-        normalized.expense,
-        normalized.net
-    );
+        renderFinanceBarChart(
+            normalized.labels,
+            normalized.revenue,
+            normalized.expense,
+            normalized.net
+        );
+    } catch (_) {
+        // network error — chart stays empty
+    }
 }
 
 // rendering
@@ -229,190 +239,153 @@ function renderDetailModal(month, type, rows){
 // Rental Analytics
 // ============================================================
 
-// ---- Fetch and dispatch ----
+// ---- Model name normalization ----
+function normalizeModelName(raw) {
+    if (!raw) return "Unknown";
+    const m = raw.trim();
+    // Single letter shorthand: "Y" → "Model Y", "3" → "Model 3"
+    if (/^[YyXx3Ss]$/.test(m)) return `Model ${m.toUpperCase()}`;
+    // "Model 3 Long Range AWD" → "Model 3"
+    const match = m.match(/^(Model\s+[YyXx3Ss])\b/i);
+    if (match) return match[1].replace(/model\s+/i, "Model ");
+    return m;
+}
+
+// ---- Formatting helpers ----
+function fmtCurrency(v) {
+    if (v == null || isNaN(v)) return "—";
+    return "$" + Number(v).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function fmtPct(ratio) {
+    if (ratio == null || isNaN(ratio)) return "—";
+    return (ratio * 100).toFixed(1) + "%";
+}
+
+function utilizationBadge(ratio) {
+    const pct = ratio * 100;
+    let cls = "text-danger";
+    if (pct >= 70) cls = "text-success fw-semibold";
+    else if (pct >= 40) cls = "text-warning fw-semibold";
+    return `<span class="${cls}">${fmtPct(ratio)}</span>`;
+}
+
+// ---- Fetch (once) and render ----
 async function loadRentalAnalytics() {
-    const windowSelect = document.getElementById("rentalWindowSelect");
-    const windowSize = windowSelect ? parseInt(windowSelect.value) : 12;
+    const ERR_COLS_MODEL   = 5;
+    const ERR_COLS_MONTHLY = 4;
 
-    const res = await fetch(`/api/management/analytics/rental-usage?window=${windowSize}`);
-    const json = await res.json();
-    if (!json.success) return;
+    function setLoadingError(msg) {
+        const modelTbody   = document.getElementById("ra-model-tbody");
+        const monthlyTbody = document.getElementById("ra-monthly-tbody");
+        const errRow = (cols, text) =>
+            `<tr><td colspan="${cols}" class="text-center text-danger py-3">${text}</td></tr>`;
+        if (modelTbody)   modelTbody.innerHTML   = errRow(ERR_COLS_MODEL,   msg);
+        if (monthlyTbody) monthlyTbody.innerHTML = errRow(ERR_COLS_MONTHLY, msg);
+    }
 
-    const labels = generateLastMonths(windowSize); // reuse existing helper
-
-    const monthlyNorm = normalizeRentalMonthly(json.monthly, labels);
-    const utilization = monthlyNorm.map(m => parseFloat((m.utilization * 100).toFixed(2)));
-    const rentDays    = monthlyNorm.map(m => m.rent_days);
-
-    renderRentalUtilizationChart(labels, utilization);
-    renderRentalRentDaysChart(labels, rentDays);
-    renderRentalModelChart(labels, json.by_model);
-}
-
-// ---- Normalize monthly array: fill missing months with 0 ----
-function normalizeRentalMonthly(monthly, labels) {
-    // Build a map from "YYYY-MM" to the monthly entry
-    const map = {};
-    (monthly || []).forEach(m => {
-        const key = `${m.year}-${String(m.month).padStart(2, '0')}`;
-        map[key] = m;
-    });
-
-    return labels.map(label => {
-        const entry = map[label];
-        return {
-            rent_days:      entry ? entry.rent_days      : 0,
-            available_days: entry ? entry.available_days : 0,
-            utilization:    entry ? entry.utilization    : 0,
-        };
-    });
-}
-
-// ---- Chart 1: Monthly Utilization (line) ----
-function renderRentalUtilizationChart(labels, utilization) {
-    const canvas = document.getElementById("rental-utilization-chart");
-    if (!canvas) return;
-
-    if (rentalUtilizationChart) rentalUtilizationChart.destroy();
-
-    rentalUtilizationChart = new Chart(canvas.getContext("2d"), {
-        type: 'line',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Utilization %',
-                data: utilization,
-                borderColor: 'rgba(23, 162, 184, 1)',
-                backgroundColor: 'rgba(23, 162, 184, 0.15)',
-                borderWidth: 2,
-                pointRadius: 4,
-                fill: true,
-                tension: 0.3
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom' },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => `${ctx.dataset.label}: ${ctx.raw}%`
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    ticks: {
-                        callback: v => `${v}%`
-                    }
-                }
-            }
+    try {
+        const res  = await fetch(`/api/management/analytics/rental-usage?window=12`);
+        let json;
+        try {
+            json = await res.json();
+        } catch (_) {
+            setLoadingError(`Server error (HTTP ${res.status})`);
+            return;
         }
-    });
+
+        if (!json.success) {
+            setLoadingError(json.message || "Failed to load analytics");
+            return;
+        }
+
+        rentalAnalyticsData = json;
+        renderRentalAnalytics(1);
+
+    } catch (err) {
+        setLoadingError("Network error — could not reach analytics API");
+    }
 }
 
-// ---- Chart 2: Monthly Rent Days (bar) ----
-function renderRentalRentDaysChart(labels, rentDays) {
-    const canvas = document.getElementById("rental-rent-days-chart");
-    if (!canvas) return;
+function renderRentalAnalytics(period) {
+    if (!rentalAnalyticsData) return;
 
-    if (rentalRentDaysChart) rentalRentDaysChart.destroy();
+    const { monthly, by_model } = rentalAnalyticsData;
 
-    rentalRentDaysChart = new Chart(canvas.getContext("2d"), {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                label: 'Rent Days',
-                data: rentDays,
-                backgroundColor: 'rgba(40, 167, 69, 0.7)'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom' },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => `Rent Days: ${ctx.raw}`
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        callback: v => `${v}d`
-                    }
-                }
-            }
+    // Slice to the last `period` months
+    const slicedMonthly = (monthly || []).slice(-period);
+
+    // ---- Summary totals ----
+    const totalRentDays  = slicedMonthly.reduce((s, m) => s + m.rent_days,      0);
+    const totalAvailDays = slicedMonthly.reduce((s, m) => s + m.available_days,  0);
+    const totalRevenue   = slicedMonthly.reduce((s, m) => s + (m.revenue || 0),  0);
+
+    const utilRatio   = totalAvailDays > 0 ? totalRentDays  / totalAvailDays : null;
+    const revPerDay   = totalAvailDays > 0 ? totalRevenue   / totalAvailDays : null;
+
+    document.getElementById("ra-rent-days").textContent    = totalRentDays;
+    document.getElementById("ra-available-days").textContent = totalAvailDays;
+    document.getElementById("ra-utilization").textContent  = utilRatio != null ? fmtPct(utilRatio) : "—";
+    document.getElementById("ra-revenue").textContent      = fmtCurrency(totalRevenue);
+    document.getElementById("ra-rev-per-day").textContent  = revPerDay != null ? fmtCurrency(revPerDay) : "—";
+
+    // ---- Build set of included YYYY-MM keys ----
+    const includedKeys = new Set(
+        slicedMonthly.map(m => `${m.year}-${String(m.month).padStart(2, '0')}`)
+    );
+
+    // ---- Aggregate by_model for selected period ----
+    const modelTotals = {};
+    (by_model || []).forEach(r => {
+        const key = `${r.year}-${String(r.month).padStart(2, '0')}`;
+        if (!includedKeys.has(key)) return;
+        const label = normalizeModelName(r.model);
+        if (!modelTotals[label]) {
+            modelTotals[label] = { rent_days: 0, available_days: 0, revenue: 0 };
         }
-    });
-}
-
-// ---- Chart 3: Monthly Rent Days by Model (stacked bar) ----
-// Rent days are additive per model, so stacking is correct and meaningful.
-function renderRentalModelChart(labels, byModel) {
-    const canvas = document.getElementById("rental-model-chart");
-    if (!canvas) return;
-
-    if (rentalModelChart) rentalModelChart.destroy();
-
-    // Extract unique models, sorted for stable output
-    const models = [...new Set((byModel || []).map(r => r.model))].sort();
-
-    // Build a lookup: "YYYY-MM|model" → rent_days
-    const lookup = {};
-    (byModel || []).forEach(r => {
-        const key = `${r.year}-${String(r.month).padStart(2, '0')}|${r.model}`;
-        lookup[key] = r.rent_days;
+        modelTotals[label].rent_days      += r.rent_days;
+        modelTotals[label].available_days += r.available_days;
+        modelTotals[label].revenue        += (r.revenue || 0);
     });
 
-    const palette = [
-        'rgba(54,  162, 235, 0.75)',
-        'rgba(255, 159,  64, 0.75)',
-        'rgba(153, 102, 255, 0.75)',
-        'rgba(255, 205,  86, 0.75)',
-        'rgba(75,  192, 192, 0.75)',
-        'rgba(255,  99, 132, 0.75)',
-        'rgba(201, 203, 207, 0.75)',
-    ];
-
-    const datasets = models.map((model, i) => ({
-        label: model,
-        data: labels.map(label => lookup[`${label}|${model}`] ?? 0),
-        backgroundColor: palette[i % palette.length],
-        stack: 'models'   // stacks all models into one bar per month
-    }));
-
-    rentalModelChart = new Chart(canvas.getContext("2d"), {
-        type: 'bar',
-        data: { labels, datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { position: 'bottom' },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => `${ctx.dataset.label}: ${ctx.raw}d`
-                    }
-                }
-            },
-            scales: {
-                x: { stacked: true },
-                y: {
-                    stacked: true,
-                    beginAtZero: true,
-                    ticks: {
-                        callback: v => `${v}d`
-                    }
-                }
-            }
-        }
+    // ---- Model summary table (sorted by utilization desc) ----
+    const modelTbody = document.getElementById("ra-model-tbody");
+    const modelRows = Object.entries(modelTotals).sort((a, b) => {
+        const uA = a[1].available_days > 0 ? a[1].rent_days / a[1].available_days : 0;
+        const uB = b[1].available_days > 0 ? b[1].rent_days / b[1].available_days : 0;
+        return uB - uA;
     });
+
+    if (modelRows.length === 0) {
+        modelTbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">No data</td></tr>`;
+    } else {
+        modelTbody.innerHTML = modelRows.map(([model, v]) => {
+            const util   = v.available_days > 0 ? v.rent_days / v.available_days : null;
+            const rpd    = v.available_days > 0 ? v.revenue   / v.available_days : null;
+            return `<tr>
+                <td>${model}</td>
+                <td class="text-end">${v.rent_days}</td>
+                <td class="text-end">${util != null ? utilizationBadge(util) : "—"}</td>
+                <td class="text-end">${fmtCurrency(v.revenue)}</td>
+                <td class="text-end">${rpd != null ? fmtCurrency(rpd) : "—"}</td>
+            </tr>`;
+        }).join("");
+    }
+
+    // ---- Monthly summary table (newest first) ----
+    const monthlyTbody = document.getElementById("ra-monthly-tbody");
+    if (slicedMonthly.length === 0) {
+        monthlyTbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">No data</td></tr>`;
+    } else {
+        monthlyTbody.innerHTML = [...slicedMonthly].reverse().map(m => {
+            const label = `${m.year}-${String(m.month).padStart(2, '0')}`;
+            const util  = m.available_days > 0 ? m.rent_days / m.available_days : null;
+            return `<tr>
+                <td>${label}</td>
+                <td class="text-end">${m.rent_days}</td>
+                <td class="text-end">${util != null ? utilizationBadge(util) : "—"}</td>
+                <td class="text-end">${fmtCurrency(m.revenue)}</td>
+            </tr>`;
+        }).join("");
+    }
 }
