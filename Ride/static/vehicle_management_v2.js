@@ -328,7 +328,7 @@ $(document).ready(async function () {
     const modalEl = document.getElementById("editPlateModal");
     if (!modalEl) return;
 
-    $("#editPlateVehicleId").val(vehicleId);
+    $("#editPlateVehiclePlatformId").val(vehicleId);
     $("#currentPlateNumber").val(currentPlate);
     $("#newPlateNumber").val(currentPlate);
 
@@ -337,7 +337,7 @@ $(document).ready(async function () {
   });
 
   $(document).on("click", "#savePlateBtn", async function () {
-    const vehicleId = $("#editPlateVehicleId").val();
+    const vehicleId = $("#editPlateVehiclePlatformId").val();
     const newPlate = ($("#newPlateNumber").val() || "").trim();
 
     if (!vehicleId) return;

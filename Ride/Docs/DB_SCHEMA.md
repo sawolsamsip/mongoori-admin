@@ -26,8 +26,6 @@ This structure enables:
 * **Identity Domain**: admin_user
 * **Vehicle Domain**: core vehicle identity and metadata
 * **Warranty Domain**: warranty classification and lifecycle
-* **Parking Domain**: physical and operational location tracking
-* **Operation Domain**: real-time operational state
 * **Fleet Domain**: external service integrations
 * **Finance Domain**: cost/revenue tracking
 
@@ -122,39 +120,6 @@ Polymorphic association model (base + subtype tables)
 
 ---
 
-### Parking Domain
-
-#### parking_lot
-
-Master table for parking locations.
-
-* Unique physical address constraint
-* Status controlled (active/inactive)
-
-#### vehicle_parking
-
-Parking history table.
-
-* Records physical parking history
-* `parking_to IS NULL` = active parking
-
-**Constraint logic:**
-
-* Partial unique index enforces one active parking per vehicle
-* No overwriting of history
-
-#### vehicle_operation_location
-
-Operational location history table.
-
-* Represents operational base location
-* Separated from physical parking
-
-**Design rationale:**
-Physical parking ≠ operational base
-
----
-
 ### Fleet Domain
 
 #### fleet_service
@@ -217,20 +182,10 @@ Historical records are preserved by closing time ranges instead of updating rows
 
 ## 5. Data Update Rules
 
-### Parking Change
-
-1. Close current row (`parking_to = today`)
-2. Insert new row
-
 ### Fleet Registration Change
 
 1. Close current row (`registered_to = today`)
 2. Insert new registration
-
-### Operation Location Change
-
-1. Close current active row
-2. Insert new operational location
 
 ---
 

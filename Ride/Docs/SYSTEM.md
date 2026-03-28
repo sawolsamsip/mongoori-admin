@@ -2,7 +2,7 @@
 
 ## 1. System Overview
 1.1 Purpose
-This system is a web-based administrative platform designed for fleet and vehicle operations management. It provides integrated management of vehicles, warranties, parking, fleet services, operational status, subscriptions, and maintenance workflows.
+This system is a web-based administrative platform designed for fleet and vehicle operations management. It provides integrated management of vehicles, warranties, fleet services, operational status, subscriptions, and maintenance workflows.
 
 1.2 System Goals
 - Vehicle-centric data management
@@ -54,7 +54,6 @@ This system is a web-based administrative platform designed for fleet and vehicl
 4.1 Core Entities
 - Vehicle
 - Warranty
-- ParkingLot
 - FleetService
 - Finance
 - AdminUser
@@ -72,8 +71,6 @@ This system is a web-based administrative platform designed for fleet and vehicl
 - vehicle_warranty
 - warranty_purchase
 - warranty_subscription
-- parking_lot
-- vehicle_parking
 - fleet_service
 - vehicle_fleet
 
@@ -94,21 +91,19 @@ This system is a web-based administrative platform designed for fleet and vehicl
 - /api/auth/*
 - /api/vehicles/*
 - /api/warranties/*
-- /api/parking/*
 - /api/fleets/*
 - /api/finance/*
 
 ## 7. Frontend Architecture
 7.1 Page Structure
 Vehicle Operation View
-Operational UI focused on real-time status, parking-based grouping, fleet connections, and quick actions.
+Operational UI focused on real-time status, fleet connections, and quick actions.
 
 Vehicle Management View
 Management UI focused on vehicle master data, warranty control, fleet registration, and structural configuration.
 
 Supporting Pages
 - Dashboard
-- Parking Management
 - Fleet Management
 
 7.2 UI Design Principles
@@ -124,10 +119,7 @@ Registration → Operation → Maintenance → Deactivation → Archiving
 8.2 Warranty Lifecycle
 Registration → Active → Expiration/Termination → History retention
 
-8.3 Parking Lifecycle
-Assignment → Operation → Change → History storage
-
-8.4 Fleet Lifecycle
+8.3 Fleet Lifecycle
 Registration → Service linkage → Operation → Termination
 
 ## 9. Security Model

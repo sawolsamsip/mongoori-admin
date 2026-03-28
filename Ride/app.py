@@ -13,9 +13,6 @@ from routes.api.vehicle_api.vehicle_api import vehicle_api_bp
 from routes.admin.warranty_pages import warranty_pages_bp
 from routes.api.warranty_api import warranty_api_bp
 
-from routes.admin.parking_lot_pages import parking_lot_pages_bp
-from routes.api.parking_lot_api import parking_lot_api_bp
-
 from routes.api.fleet_service_api import fleet_service_api_bp
 
 from routes.api.vehicle_fleet_api import vehicle_fleet_api_bp
@@ -51,9 +48,6 @@ app.register_blueprint(vehicle_operation_pages_bp)
 app.register_blueprint(vehicle_api_bp)
 app.register_blueprint(warranty_pages_bp)
 app.register_blueprint(warranty_api_bp)
-
-app.register_blueprint(parking_lot_pages_bp)
-app.register_blueprint(parking_lot_api_bp)
 
 app.register_blueprint(fleet_service_api_bp)
 

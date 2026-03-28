@@ -51,14 +51,12 @@ Mongoori - Vehicle List
 
 
 {% include "fleet_modal/manage_fleet_modal.html" %}
-{% include "location_modal/location_modal.html" %}
 {% include "finance/vehicle_finance_operation.html" %}
 
 {% endblock %}
 
 {% block scripts %}
 
-<script src="{{ url_for('static', filename='location_common.js') }}"></script>
 <script src="{{ url_for('static', filename='fleet_common.js') }}"></script>
 <script src="{{ url_for('static', filename='vehicle_operation.js') }}"></script>
 <script src="{{ url_for('static', filename='finance_management/finance_operation.js') }}"></script>
