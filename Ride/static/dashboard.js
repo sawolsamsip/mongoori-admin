@@ -4,7 +4,9 @@ let rentalAnalyticsData = null;
 document.addEventListener("DOMContentLoaded", () => {
 
     loadFinanceSeries();
+    loadFleetComposition();
     loadRentalAnalytics();
+    loadPaybackAnalytics();
 
     const switchEl = document.getElementById("dashboardModeSwitch");
     const windowSelect = document.getElementById("financeWindowSelect");
@@ -387,5 +389,138 @@ function renderRentalAnalytics(period) {
                 <td class="text-end">${fmtCurrency(m.revenue)}</td>
             </tr>`;
         }).join("");
+    }
+}
+
+
+// ============================================================
+// Payback Analytics
+// ============================================================
+
+async function loadPaybackAnalytics() {
+    const tbody   = document.getElementById("pb-model-tbody");
+    const summary = document.getElementById("pb-summary");
+
+    function setError(msg) {
+        if (tbody)   tbody.innerHTML   = `<tr><td colspan="4" class="text-center text-danger py-3">${msg}</td></tr>`;
+        if (summary) summary.textContent = "—";
+    }
+
+    try {
+        const res = await fetch("/api/management/analytics/payback");
+        let json;
+        try { json = await res.json(); } catch (_) {
+            setError(`Server error (HTTP ${res.status})`);
+            return;
+        }
+
+        if (!json.success) {
+            setError(json.message || "Failed to load payback data");
+            return;
+        }
+
+        renderPaybackAnalytics(json);
+
+    } catch (_) {
+        setError("Network error — could not reach payback API");
+    }
+}
+
+function renderPaybackAnalytics(data) {
+    const { summary, by_model } = data;
+
+    // Summary card
+    const summaryEl = document.getElementById("pb-summary");
+    if (summaryEl) {
+        summaryEl.textContent = `${summary.payback} / ${summary.total} (${summary.pct}%)`;
+    }
+
+    // By-model table
+    const tbody = document.getElementById("pb-model-tbody");
+    if (!tbody) return;
+
+    if (!by_model || by_model.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-3">No data</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = by_model.map(m => {
+        const pctBadge = m.total > 0
+            ? utilizationBadge(m.pct / 100)   // reuse color logic: >=70% green, etc.
+            : "—";
+        return `<tr>
+            <td>${escapeHtml(m.model)}</td>
+            <td class="text-end">${m.total}</td>
+            <td class="text-end">${m.payback}</td>
+            <td class="text-end">${pctBadge}</td>
+        </tr>`;
+    }).join("");
+}
+
+function escapeHtml(str) {
+    return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+
+// ============================================================
+// Fleet Composition
+// ============================================================
+
+async function loadFleetComposition() {
+    const tbody = document.getElementById("fleet-model-tbody");
+    const badge = document.getElementById("fleet-total-badge");
+
+    function setError(msg) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger py-3">${msg}</td></tr>`;
+        if (badge) badge.textContent = "—";
+    }
+
+    try {
+        const res = await fetch("/api/management/analytics/fleet-composition");
+        let json;
+        try { json = await res.json(); } catch (_) {
+            setError(`Server error (HTTP ${res.status})`);
+            return;
+        }
+
+        if (!json.success) {
+            setError(json.message || "Failed to load fleet data");
+            return;
+        }
+
+        // Normalize model names and merge groups with the same normalized label
+        const merged = {};
+        (json.by_model || []).forEach(r => {
+            const label = normalizeModelName(r.model);
+            if (!merged[label]) merged[label] = { count: 0 };
+            merged[label].count += r.count;
+        });
+
+        const total = json.total || 0;
+        if (badge) badge.textContent = `${total} active`;
+
+        if (!tbody) return;
+
+        const rows = Object.entries(merged).sort((a, b) => b[1].count - a[1].count);
+        if (rows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" class="text-center text-muted py-3">No active vehicles</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = rows.map(([model, v]) => {
+            const pct = total > 0 ? (v.count / total * 100).toFixed(1) + "%" : "—";
+            return `<tr>
+                <td>${escapeHtml(model)}</td>
+                <td class="text-end fw-semibold">${v.count}</td>
+                <td class="text-end text-muted">${pct}</td>
+            </tr>`;
+        }).join("");
+
+    } catch (_) {
+        setError("Network error");
     }
 }

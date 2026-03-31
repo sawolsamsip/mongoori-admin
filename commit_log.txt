@@ -1,0 +1,104 @@
+db29cdc 2026-01-28 add handover documentation
+7c5cd1a 2026-01-28 UI change
+86c050a 2026-01-28 opeariton: vehicle view active only, management: UI
+627552c 2026-01-26 implement dashboard for monthly finance, account management and session management
+f50dd09 2026-01-23 WIP: vehicle list-management - manage finance
+994fccc 2026-01-22 WIP: vehicle list-management - manage warranty
+2faf55c 2026-01-20 WIP: fixed sorting error for vehicle list-operation, working on set location for a vehicle
+96a7c0b 2026-01-19 WIP: display vehicle status for fleet register, working on the issue related to the sorting
+f04f51a 2026-01-16 WIP: unregister vehicle-fleets feature and display registration history
+55b7738 2026-01-15 WIP: added feature to register vehicle to fleet service, working on listing
+3b4559f 2026-01-14 WIP: Separate vehicle info page and change UI, make modal to manage fleet registration
+2824d9a 2026-01-13 WIP: modifying schema and pages for new vehicle list concept - operation and management
+b554bfd 2026-01-12 WIP: modifying schema for fleet management to consider multi-fleet service use
+a6bbeff 2026-01-09 WIP: create Tables for fleet management and change modal to set parking lot with cost
+2c64448 2026-01-08 WIP: vehicle-parking lot table schema change
+45c404d 2026-01-07 WIP: change parking lot and modify error in SQL
+9943144 2026-01-06 WIP: implement the feature for changing parking lot of a given vehicle
+38e85c2 2026-01-05 WIP: make button and implement event to assign parking lot to vehicle
+608db10 2026-01-02 WIP: implemented delete feature for parking lot and moved toast function to common.js
+0abec8a 2026-01-02 WIP: SQL DDL change for foreign key names in vehicle_parking table
+87318d4 2026-01-02 WIP: implement to update parking lot and UI change
+3f6e315 2025-12-31 WIP: create new parking lot - html, js, backend
+9c04318 2025-12-29 WIP: Make groups of vehicles according to parking lots
+41d1d61 2025-12-26 Edit/view mode for vehicle detail page done, start to group vehicles with location.
+55f56a1 2025-12-25 WIP: UI for vehicle list - edit/view mode - working on JS
+6de72bf 2025-12-24 WIP: UI for vehicle list due to the readability - working on JS
+6acf82f 2025-12-23 WIP: change edit page to a page with two mode (view/edit)
+602aa21 2025-12-18 working version of vehicle and warranty management: fixed error for add button of subscription warranty
+4d1bd5d 2025-12-17 working version of vehicle and warranty management after refactoring and correcting the url for edit button in vehicle list page
+7ab0433 2025-12-17 working version of vehicle and warranty management after refactoring
+b206ec9 2025-12-16 WIP: refactoring warranty management for subscription warranty - delete, update_draft
+9d4f26e 2025-12-15 WIP: refactoring warranty management - from RPC to REST for update function - Flask part
+02e5124 2025-12-12 fixing error in get_status_warranty function to consider start date
+d8f7ef7 2025-12-12 WIP: refactoring for vehicle management - done, ready to refactory warranty management
+6ba76e2 2025-12-11 WIP: refactoring for vehicle add function and urls for base.html
+b3508d6 2025-12-10 WIP: refactoring for vehicle related functions - return types and branch in JS instead of Flask
+f8bd594 2025-12-09 WIP: refactoring for vehicle related functions - separate update to api and rendering
+af6afdd 2025-12-08 WIP: continue the refactoring work on features related to vehicle
+3101827 2025-12-05 WIP: refactoring for rendering and api for RESTful
+683f247 2025-12-03 changed names of Routes and endpoints related to vehicle
+9ece0a0 2025-12-02 changed nav-bar sturucture and urls for nav items
+527fcd5 2025-11-27 modified purchase warranty update feature
+7c533b9 2025-11-26 delete purchase warranty and modal refactoring
+a6abd08 2025-11-24 corrected the typo and index for subscription warranty
+897da54 2025-11-24 implement feature to insert new purchase warranty into database
+73fc5f0 2025-11-20 add function to insert new purchase warranty(from vehicle info page) into database
+f09cd66 2025-11-18 fixing modal error in vehicle_info page (add warranty)
+42914eb 2025-11-11 Restructure project
+a6fe92d 2025-11-07 add vehicle function - new version - for additional tesla warranties
+6d946a6 2025-11-03 delete vehicle feature
+1f1709c 2025-10-31 add feature to edit/delete vehicle
+7830da8 2025-10-30 add button even to add/remove warranty
+86c292b 2025-10-29 add buttons to add/delete warranty for a vehicle
+f9bd1b4 2025-10-29 fix warranty update web reload feature
+085b744 2025-10-27 divide upload.js into independent js files and warranty_edit feature- base
+e33a8cf 2025-10-24 add warranty information page and rename column for mileage (odometer to mileage) for consistency
+bd4bf17 2025-10-23 add warranty feature-base
+b2a4352 2025-10-22 implement edit vehicle and update DB 10222025
+d3ff919 2025-10-21 implement edit vehicle feature
+3e74cae 2025-10-20 implement retrieval feature
+b718178 2025-10-17 insert vehicle with DB update_initial, modified time zone setting
+41aa1c5 2025-10-16 modify form_vehicle.html and upload.js for additinoal options
+13d543e 2025-10-13 add html for exterior and interior, set default for year in js file
+b74b02b 2025-10-09 Dropdown list for year with JS
+bb5dd66 2025-10-06 update admin feature with bootstrap
+fc5900a 2025-10-02 Remove unused folder
+0c4a159 2025-10-01 update a form to add new vehicle
+d69be37 2025-09-29 Add admin login feature
+9fb58c4 2025-09-27 Update index.html
+f9e7e21 2025-09-27 Update index.html
+185fbb1 2025-09-27 Update index.html
+3505a8a 2025-09-17 원상복구
+acb05c8 2025-09-17 Update index.html
+5de59bb 2025-09-17 css 위치 수정
+ff994b9 2025-09-17 수정
+3978173 2025-09-17 index 파일 수정
+dc248e6 2025-09-17 index 링크 수정
+a58082b 2025-09-17 finds, rides 페이지 추가
+0f790c3 2025-09-17 Update style.css
+63504da 2025-09-17 Update index.html
+6dd5fed 2025-09-17 Create deploy.yml
+1f20ee5 2025-09-14 Update style.css
+caecbd9 2025-09-14 Update index.html
+5ee82d3 2025-09-14 Update index.html
+728c0db 2025-09-14 Update index.html
+ce90fbe 2025-09-14 Update index.html
+e8090f7 2025-09-14 Delete images/stays-bg.jpeg
+ad1362c 2025-09-14 Add files via upload
+597b8ed 2025-09-14 Update style.css
+393f846 2025-09-14 Update style.css
+6bf098b 2025-09-14 Update style.css
+6453303 2025-09-14 Update index.html
+1fa8e2f 2025-09-14 Update style.css
+2e2a3bf 2025-09-14 Update index.html
+e576ee2 2025-09-14 Update style.css
+cd48453 2025-09-14 Update index.html
+446229b 2025-09-14 Update style.css
+749ae22 2025-09-14 Update style.css
+a3982d3 2025-09-14 Delete images/a
+05f74d7 2025-09-14 Add files via upload
+2b8ecd1 2025-09-14 Create a
+d95e27a 2025-09-14 Create style.css
+44a2f52 2025-09-14 Create index.html
+916d02d 2025-09-14 Initial commit

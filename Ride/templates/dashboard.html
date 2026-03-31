@@ -8,23 +8,22 @@ Mongoori
 <div class="content-wrapper">
   <section class="content">
     <div class="container-fluid">
-      <div class="row">
-        <div class="col-lg-12">
+      <div class="row g-3">
 
-          <div class="card">
+        <!-- LEFT: Monthly Finance chart -->
+        <div class="col-lg-8">
+          <div class="card h-100">
             <div class="card-header border-0">
               <div class="d-flex justify-content-between align-items-center">
                 <h3 class="card-title">Monthly Finance</h3>
 
-                <!-- Window Dropdown -->
                 <select id="financeWindowSelect" class="form-select form-select-sm" style="width: 120px;">
                   <option value="3">3 Months</option>
                   <option value="6">6 Months</option>
                   <option value="12" selected>12 Months</option>
                 </select>
 
-                <!-- Mode Switch -->
-                <div class="form-check form-switch">
+                <div class="form-check form-switch mb-0">
                   <input class="form-check-input"
                          type="checkbox"
                          id="dashboardModeSwitch">
@@ -37,14 +36,41 @@ Mongoori
             </div>
 
             <div class="card-body">
-              <div class="position-relative mb-4" style="height: 400px;">
+              <div class="position-relative" style="height: 320px;">
                 <canvas id="finance-bar-chart"></canvas>
               </div>
             </div>
-
           </div>
-
         </div>
+
+        <!-- RIGHT: Fleet by Model -->
+        <div class="col-lg-4">
+          <div class="card h-100">
+            <div class="card-header border-0 py-2">
+              <div class="d-flex justify-content-between align-items-center">
+                <h3 class="card-title mb-0">Fleet by Model</h3>
+                <span class="badge bg-secondary" id="fleet-total-badge">—</span>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div style="max-height: 370px; overflow-y: auto;">
+                <table class="table table-sm table-hover mb-0">
+                  <thead class="table-light sticky-top">
+                    <tr>
+                      <th>Model</th>
+                      <th class="text-end">Vehicles</th>
+                      <th class="text-end">Share</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fleet-model-tbody">
+                    <tr><td colspan="3" class="text-center text-muted py-3">Loading...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- ── Rental Analytics ─────────────────────────────────────── -->
@@ -163,6 +189,57 @@ Mongoori
             </div>
 
           </div>
+        </div>
+      </div>
+
+      <!-- ── Payback Analytics ─────────────────────────────────────── -->
+      <div class="row mt-4">
+        <div class="col-12">
+
+          <div class="d-flex align-items-center mb-3">
+            <h5 class="mb-0 fw-semibold">Investment Payback</h5>
+          </div>
+
+          <!-- Summary card -->
+          <div class="row g-2 mb-3">
+            <div class="col-auto">
+              <div class="card shadow-sm text-center h-100">
+                <div class="card-body py-2 px-4">
+                  <div class="text-muted small mb-1">Payback Vehicles</div>
+                  <div class="h4 mb-0 fw-bold" id="pb-summary">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- By model table -->
+          <div class="row">
+            <div class="col-md-6">
+              <div class="card">
+                <div class="card-header py-2">
+                  <h3 class="card-title mb-0">By Model</h3>
+                </div>
+                <div class="card-body p-0">
+                  <div style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sm table-hover mb-0">
+                      <thead class="table-light sticky-top">
+                        <tr>
+                          <th>Model</th>
+                          <th class="text-end">Total</th>
+                          <th class="text-end">Payback</th>
+                          <th class="text-end">Payback %</th>
+                        </tr>
+                      </thead>
+                      <tbody id="pb-model-tbody">
+                        <tr><td colspan="4" class="text-center text-muted py-3">Loading...</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 

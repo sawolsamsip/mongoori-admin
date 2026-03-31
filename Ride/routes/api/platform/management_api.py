@@ -316,6 +316,123 @@ def update_car_plate(vehicle_id):
         return jsonify(success=False, message=str(e)), 500
 
 
+@management_api_bp.get("/analytics/fleet-composition")
+def get_fleet_composition():
+    if not session.get("admin_logged_in"):
+        return jsonify(success=False, message="Unauthorized"), 401
+
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT model, COUNT(*) AS count
+            FROM vehicle
+            WHERE vehicle_status = 'Active'
+            GROUP BY model
+            ORDER BY model
+        """)
+        rows = cur.fetchall()
+
+        total = sum(r["count"] for r in rows)
+        by_model = [
+            {
+                "model": r["model"] or "Unknown",
+                "count": r["count"],
+                "pct": round(r["count"] / total * 100, 1) if total else 0
+            }
+            for r in rows
+        ]
+
+        return jsonify(success=True, total=total, by_model=by_model)
+
+    except Exception as e:
+        return jsonify(success=False, message=str(e)), 500
+
+
+@management_api_bp.get("/analytics/payback")
+def get_payback_analytics():
+    if not session.get("admin_logged_in"):
+        return jsonify(success=False, message="Unauthorized"), 401
+
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        # Per-vehicle: purchase_price and cumulative_revenue
+        # purchase_price  = sum of total_amount from finance_management_transaction
+        #                   where the category is 'Vehicle Purchase Price'
+        #                   (one_time and installment entries both carry total_amount)
+        # cumulative_revenue = sum of all revenue-type entries in
+        #                      finance_operation_transaction (lifetime, no window)
+        cur.execute("""
+            WITH purchase AS (
+                SELECT
+                    fmt.vehicle_id,
+                    SUM(COALESCE(fmt.total_amount, 0)) AS purchase_price
+                FROM finance_management_transaction fmt
+                JOIN finance_management_category fmc
+                    ON fmc.category_id = fmt.category_id
+                WHERE fmc.name = 'Vehicle Purchase Price'
+                GROUP BY fmt.vehicle_id
+            ),
+            rev AS (
+                SELECT
+                    fot.vehicle_id,
+                    SUM(fot.amount) AS cumulative_revenue
+                FROM finance_operation_transaction fot
+                JOIN finance_operation_category foc
+                    ON foc.category_id = fot.category_id
+                WHERE foc.type = 'revenue'
+                GROUP BY fot.vehicle_id
+            )
+            SELECT
+                v.vehicle_id,
+                v.model,
+                COALESCE(p.purchase_price,     0) AS purchase_price,
+                COALESCE(r.cumulative_revenue, 0) AS cumulative_revenue,
+                CASE
+                    WHEN COALESCE(p.purchase_price, 0) > 0
+                     AND COALESCE(r.cumulative_revenue, 0) >= COALESCE(p.purchase_price, 0)
+                    THEN 1
+                    ELSE 0
+                END AS payback
+            FROM vehicle v
+            LEFT JOIN purchase p ON p.vehicle_id = v.vehicle_id
+            LEFT JOIN rev     r  ON r.vehicle_id  = v.vehicle_id
+            ORDER BY v.model
+        """)
+        rows = cur.fetchall()
+
+        # Aggregate summary
+        total   = len(rows)
+        payback = sum(1 for r in rows if r["payback"])
+        pct     = round(payback / total * 100, 1) if total else 0
+
+        # Aggregate by model
+        model_map = {}
+        for r in rows:
+            key = r["model"] or "Unknown"
+            if key not in model_map:
+                model_map[key] = {"model": key, "total": 0, "payback": 0}
+            model_map[key]["total"]   += 1
+            model_map[key]["payback"] += r["payback"]
+
+        by_model = []
+        for m in sorted(model_map.values(), key=lambda x: x["model"]):
+            m["pct"] = round(m["payback"] / m["total"] * 100, 1) if m["total"] else 0
+            by_model.append(m)
+
+        return jsonify(
+            success=True,
+            summary={"total": total, "payback": payback, "pct": pct},
+            by_model=by_model
+        )
+
+    except Exception as e:
+        return jsonify(success=False, message=str(e)), 500
+
+
 @management_api_bp.get("/analytics/rental-usage")
 def get_rental_usage_analytics():
     if not session.get("admin_logged_in"):
