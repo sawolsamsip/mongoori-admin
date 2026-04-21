@@ -1,5 +1,6 @@
 import sqlite3
 from flask import g
+import os
 
 DB_PATH = "app.db"
 
@@ -20,11 +21,14 @@ def close_conn(e=None):
         db.close()
 
 def init_db():
+    db_exists = os.path.exists(DB_PATH)
     conn = sqlite3.connect(DB_PATH)
-    with open("./db/schema.sql", "r", encoding="utf-8") as f:
-        conn.executescript(f.read())
     
-    with open("./db/seed.sql", "r", encoding="utf-8") as f:
-        conn.executescript(f.read())
+    if not db_exists:
+        with open("./db/schema.sql", "r", encoding="utf-8") as f:
+            conn.executescript(f.read())
+        
+        with open("./db/seed.sql", "r", encoding="utf-8") as f:
+            conn.executescript(f.read())
 
     conn.close()

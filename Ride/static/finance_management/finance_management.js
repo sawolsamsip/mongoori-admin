@@ -296,3 +296,100 @@ $('#costInstallMonthly').on('input', function () {
 });
 
 $('#costInstallTotal, #costInstallMonths').on('input', recalcMonthly);
+
+
+/* ===================== CONTRACT PARSER ===================== */
+
+$(document).on('click', '#parseContractBtn', async function () {
+  const fileInput = document.getElementById('contractFile');
+  if (!fileInput || !fileInput.files.length) {
+    return alert('Please select a contract file.');
+  }
+
+  const btn = $(this);
+  const status = $('#contractParseStatus');
+  btn.prop('disabled', true);
+  status.html('<span class="text-muted">Parsing contract, please wait...</span>');
+
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+
+  try {
+    const res = await fetch('/api/contract/parse', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      status.html(`<span class="text-danger">${data.message || 'Parse failed.'}</span>`);
+      return;
+    }
+
+    fillContractFields(data.data);
+    status.html('<span class="text-success">Fields filled from contract. Please review before saving.</span>');
+
+  } catch (err) {
+    console.error(err);
+    status.html('<span class="text-danger">Network error during parsing.</span>');
+  } finally {
+    btn.prop('disabled', false);
+  }
+});
+
+function _parseDollar(val) {
+  if (!val) return '';
+  const n = parseFloat(String(val).replace(/[$,\s]/g, ''));
+  return isNaN(n) ? '' : n;
+}
+
+function _parseISODate(val) {
+  if (!val) return '';
+  // MM/DD/YYYY
+  let m = String(val).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  // Fallback: try Date constructor
+  const d = new Date(val);
+  if (!isNaN(d)) return d.toISOString().split('T')[0];
+  return '';
+}
+
+function _setPaymentType(type) {
+  $(`#costPt${type.charAt(0).toUpperCase() + type.slice(1).replace('_', '')}`).prop('checked', true);
+  $('#costFieldsOneTime').toggleClass('d-none', type !== 'one_time');
+  $('#costFieldsMonthly').toggleClass('d-none', type !== 'monthly');
+  $('#costFieldsInstallment').toggleClass('d-none', type !== 'installment');
+}
+
+function fillContractFields(data) {
+  const numPayments = parseInt(data.num_payments, 10) || 0;
+
+  if (numPayments > 1) {
+    _setPaymentType('installment');
+
+    const total = _parseDollar(data.amount_financed || data.total_of_payments);
+    if (total !== '') $('#costInstallTotal').val(total);
+
+    $('#costInstallMonths').val(numPayments);
+
+    const monthly = _parseDollar(data.monthly_payment);
+    if (monthly !== '') {
+      $('#costInstallMonthly').val(monthly);
+    } else {
+      recalcMonthly();
+    }
+
+    const startDate = _parseISODate(data.first_payment_date);
+    if (startDate) $('#costInstallStartDate').val(startDate).trigger('change');
+
+  } else {
+    _setPaymentType('one_time');
+
+    const amount = _parseDollar(
+      data.total_sale_price || data.amount_financed || data.total_of_payments
+    );
+    if (amount !== '') $('#costOneTimeAmount').val(amount);
+  }
+}
