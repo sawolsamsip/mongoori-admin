@@ -247,6 +247,137 @@ function resetOperationCostForm() {
   $('#opCostNote').val('');
 }
 
+
+/* ===================== SERVICE INVOICE PARSER ===================== */
+
+async function _loadInvoiceCostCategories() {
+  const select = $('#iuCostCategory');
+  if (select.find('option[value!=""]').length) return; // already loaded
+
+  try {
+    const res  = await fetch('/api/finance/operation/categories?type=cost');
+    const data = await res.json();
+    if (!res.ok || !data.success) return;
+    data.categories.forEach(c => {
+      select.append(`<option value="${c.category_id}">${c.name}</option>`);
+    });
+  } catch (err) {
+    console.error('[invoice] failed to load cost categories', err);
+  }
+}
+
+
+/* --- Parse step --- */
+$(document).on('click', '#iuParseBtn', async function () {
+  const fileInput = document.getElementById('iuFile');
+  if (!fileInput || !fileInput.files.length) {
+    return alert('Please select a Tesla service invoice PDF.');
+  }
+
+  const btn    = $(this);
+  const status = $('#iuStatus');
+  btn.prop('disabled', true);
+  $('#iuReview').addClass('d-none');
+  status.html('<span class="text-muted">Parsing invoice, please wait...</span>');
+
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+
+  try {
+    const res  = await fetch('/api/invoice/parse', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      status.html(`<span class="text-danger">${data.message || 'Parse failed.'}</span>`);
+      return;
+    }
+
+    const d          = data.data;
+    const modal      = $('#invoiceUploadModal');
+    const vehicleVin = (modal.data('vin') || '').trim().toUpperCase();
+    const invoiceVin = (d.vin || '').trim().toUpperCase();
+    const vinMatch   = vehicleVin && invoiceVin && invoiceVin === vehicleVin;
+
+    /* VIN display */
+    $('#iuVehicleVin').text(vehicleVin || '—');
+    $('#iuInvoiceVin').text(invoiceVin || '(not found)');
+    if (invoiceVin && !vinMatch) {
+      $('#iuVinWarning').removeClass('d-none');
+    } else {
+      $('#iuVinWarning').addClass('d-none');
+    }
+
+    /* Editable fields */
+    $('#iuDate').val(d.invoice_date || '');
+    $('#iuAmount').val(d.total_amount != null ? d.total_amount : '');
+
+    const notes = (d.jobs || [])
+      .map(j => `${j.concern}: $${Number(j.amount).toFixed(2)}`)
+      .join('\n');
+    $('#iuNotes').val(notes);
+
+    await _loadInvoiceCostCategories();
+
+    status.html('<span class="text-success">Parsed successfully. Review and edit below, then save.</span>');
+    $('#iuReview').removeClass('d-none');
+
+  } catch (err) {
+    console.error(err);
+    status.html('<span class="text-danger">Network error during parsing.</span>');
+  } finally {
+    btn.prop('disabled', false);
+  }
+});
+
+
+/* --- Save step --- */
+$(document).on('click', '#iuSaveBtn', async function () {
+  const modal     = $('#invoiceUploadModal');
+  const vehicleId = modal.data('vehicleId');
+  if (!vehicleId) return alert('Vehicle context missing.');
+
+  const payload = {
+    vehicle_id:       vehicleId,
+    category_id:      $('#iuCostCategory').val(),
+    transaction_date: $('#iuDate').val(),
+    amount:           $('#iuAmount').val(),
+    note:             $('#iuNotes').val()
+  };
+
+  if (!payload.category_id || !payload.transaction_date || !payload.amount) {
+    return alert('Category, date, and amount are required.');
+  }
+
+  const btn = $(this);
+  btn.prop('disabled', true);
+
+  try {
+    const res  = await fetch(
+      `/api/finance/operations/vehicles/${vehicleId}/transactions`,
+      {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload)
+      }
+    );
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      alert(data.message || 'Failed to save.');
+      return;
+    }
+
+    showToast?.('Service invoice cost saved');
+    bootstrap.Modal.getInstance(document.getElementById('invoiceUploadModal'))?.hide();
+
+  } catch (err) {
+    console.error(err);
+    alert('Network error while saving.');
+  } finally {
+    btn.prop('disabled', false);
+  }
+});
+
 function resetOperationRevenueForm() {
   $('#opRevenueCategory').val('');
   $('#opRevenueDate').val('');

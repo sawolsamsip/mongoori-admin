@@ -1,13 +1,15 @@
-import ollama
-import json
 import re
 import logging
+import tempfile
 from pathlib import Path
-from pdf2image import convert_from_path
-import pytesseract
-from PIL import Image
+
+from services.shared.utils import pdf_to_images, ocr_page, query_model, parse_json, to_float
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Purchase contract prompt
+# ---------------------------------------------------------------------------
 
 PROMPT = """This is a car sales contract image. Extract the following fields and return as JSON only, no explanation, no markdown:
 {
@@ -22,6 +24,10 @@ PROMPT = """This is a car sales contract image. Extract the following fields and
     "monthly_payment": "",
     "first_payment_date": ""
 }"""
+
+# ---------------------------------------------------------------------------
+# Purchase-contract-specific page scoring patterns
+# ---------------------------------------------------------------------------
 
 TOP_K_SUMMARY_PAGES = 2
 
@@ -40,15 +46,17 @@ SUMMARY_PATTERNS = [
 ]
 
 NUMERIC_PATTERNS = [
-    (r'\b\d+\.\d+\s*%',    'percentage'),
-    (r'\$[\d,]+\.\d{2}',   'currency'),
+    (r'\b\d+\.\d+\s*%',      'percentage'),
+    (r'\$[\d,]+\.\d{2}',     'currency'),
     (r'\b\d{2,3}\s+monthly', 'payment_count'),
 ]
 
+# Pages that are legal boilerplate — not useful for purchase contract extraction.
+# NOTE: "warranty" is intentionally excluded here as it appears on some contracts,
+# but it is NOT in the invoice pipeline noise list.
 NOISE_PATTERNS = [
     (r'\bprivacy notice\b',        'privacy_notice'),
     (r'\barbitration\b',           'arbitration'),
-    (r'\bwarranty\b',              'warranty'),
     (r'\bglba\b',                  'glba'),
     (r'\bopt[\s\-]out\b',          'opt_out'),
     (r'\bindemnif',                'indemnification'),
@@ -65,6 +73,9 @@ PRIORITY_FIELDS = [
     "first_payment_date",
 ]
 
+# ---------------------------------------------------------------------------
+# Purchase-contract-specific page screening
+# ---------------------------------------------------------------------------
 
 def _score_page(text: str) -> dict:
     t = text.lower()
@@ -93,7 +104,7 @@ def _screen_pages(page_paths: list[tuple[int, str]],
                   top_k: int = TOP_K_SUMMARY_PAGES) -> list[tuple[int, str]]:
     scored = []
     for page_num, img_path in page_paths:
-        text = pytesseract.image_to_string(Image.open(img_path))
+        text = ocr_page(img_path)
         result = _score_page(text)
         scored.append((page_num, img_path, result))
         logger.info(
@@ -125,58 +136,33 @@ def _select_best(candidates: list[dict]) -> dict:
     best["_extraction_score"] = best_score
     return best
 
-
-def _extract_from_image(image_path: str) -> dict:
-    response = ollama.chat(
-        model="qwen3-vl:8b",
-        messages=[{
-            "role": "user",
-            "content": PROMPT,
-            "images": [image_path]
-        }]
-    )
-    text = response["message"]["content"]
-
-    # Qwen3 models emit <think>...</think> reasoning before the actual output.
-    # Strip it before attempting JSON extraction.
-    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
-
-    match = re.search(r'\{.*\}', text, re.DOTALL)
-    if match:
-        try:
-            return json.loads(match.group())
-        except json.JSONDecodeError:
-            return {"error": "json parse failed", "raw": text}
-    return {"error": "no json found", "raw": text}
-
+# ---------------------------------------------------------------------------
+# Public entry point
+# ---------------------------------------------------------------------------
 
 def process_file(file_path: str) -> dict:
     path = Path(file_path)
 
     if path.suffix.lower() == ".pdf":
-        images = convert_from_path(file_path, dpi=300)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            image_paths = pdf_to_images(file_path, tmp_dir, dpi=300)
+            page_paths  = [(i + 1, p) for i, p in enumerate(image_paths)]
 
-        page_paths = []
-        for i, image in enumerate(images):
-            img_path = f"/tmp/contract_page_{i}.png"
-            image.save(img_path, "PNG")
-            page_paths.append((i + 1, img_path))
+            candidates = _screen_pages(page_paths)
+            if not candidates:
+                return {"error": "no relevant pages found in document"}
 
-        candidates = _screen_pages(page_paths)
-        if not candidates:
-            return {"error": "no relevant pages found in document"}
-
-        extractions = []
-        for page_num, img_path in candidates:
-            logger.info("  [extract] running Qwen-VL on page %d/%d...", page_num, len(images))
-            result = _extract_from_image(img_path)
-            result["_page"] = page_num
-            extractions.append(result)
+            extractions = []
+            for page_num, img_path in candidates:
+                logger.info("  [extract] running Qwen-VL on page %d/%d...", page_num, len(page_paths))
+                result = parse_json(query_model(img_path, PROMPT)) or {"error": "no json found"}
+                result["_page"] = page_num
+                extractions.append(result)
 
         return _select_best(extractions)
 
     elif path.suffix.lower() in {".png", ".jpg", ".jpeg"}:
-        result = _extract_from_image(file_path)
+        result = parse_json(query_model(file_path, PROMPT)) or {"error": "no json found"}
         result["_page"] = 1
         result["_extraction_score"] = _score_extraction(result)
         return result

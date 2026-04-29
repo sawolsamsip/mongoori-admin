@@ -298,36 +298,55 @@ $('#costInstallMonthly').on('input', function () {
 $('#costInstallTotal, #costInstallMonths').on('input', recalcMonthly);
 
 
-/* ===================== CONTRACT PARSER ===================== */
+/* ===================== PURCHASE DOCUMENT UPLOAD MODAL ===================== */
 
-$(document).on('click', '#parseContractBtn', async function () {
-  const fileInput = document.getElementById('contractFile');
+/* --- Parse step --- */
+$(document).on('click', '#puParseBtn', async function () {
+  const fileInput = document.getElementById('puFile');
   if (!fileInput || !fileInput.files.length) {
     return alert('Please select a contract file.');
   }
 
-  const btn = $(this);
-  const status = $('#contractParseStatus');
+  const btn    = $(this);
+  const status = $('#puStatus');
   btn.prop('disabled', true);
+  $('#puPreview').addClass('d-none');
   status.html('<span class="text-muted">Parsing contract, please wait...</span>');
 
   const formData = new FormData();
   formData.append('file', fileInput.files[0]);
 
   try {
-    const res = await fetch('/api/contract/parse', {
-      method: 'POST',
-      body: formData
-    });
-
+    const res  = await fetch('/api/contract/parse', { method: 'POST', body: formData });
     const data = await res.json();
+
     if (!res.ok || !data.success) {
       status.html(`<span class="text-danger">${data.message || 'Parse failed.'}</span>`);
       return;
     }
 
-    fillContractFields(data.data);
-    status.html('<span class="text-success">Fields filled from contract. Please review before saving.</span>');
+    $('#purchaseUploadModal').data('parsed', data.data);
+
+    const d = data.data;
+    const numPayments = parseInt(d.num_payments, 10) || 0;
+    let preview = '';
+    if (numPayments > 1) {
+      preview += `Payment: installment (${numPayments} months)\n`;
+      const total = _parseDollar(d.amount_financed || d.total_of_payments);
+      if (total !== '') preview += `Total:   $${Number(total).toFixed(2)}\n`;
+      const monthly = _parseDollar(d.monthly_payment);
+      if (monthly !== '') preview += `Monthly: $${Number(monthly).toFixed(2)}\n`;
+      const start = _parseISODate(d.first_payment_date);
+      if (start) preview += `Start:   ${start}\n`;
+    } else {
+      preview += `Payment: one-time\n`;
+      const amount = _parseDollar(d.total_sale_price || d.amount_financed || d.total_of_payments);
+      if (amount !== '') preview += `Total:   $${Number(amount).toFixed(2)}\n`;
+    }
+
+    $('#puPreviewContent').text(preview.trim() || '(no fields extracted)');
+    status.html('<span class="text-success">Parsed successfully. Review and confirm below.</span>');
+    $('#puPreview').removeClass('d-none');
 
   } catch (err) {
     console.error(err);
@@ -335,6 +354,49 @@ $(document).on('click', '#parseContractBtn', async function () {
   } finally {
     btn.prop('disabled', false);
   }
+});
+
+
+/* Holds parsed contract data between modal transitions. */
+let _pendingContractFill = null;
+
+/* --- Fill step --- */
+$(document).on('click', '#puFillBtn', function () {
+  const uploadModal = $('#purchaseUploadModal');
+  const parsed      = uploadModal.data('parsed');
+  const vehicleId   = uploadModal.data('vehicleId');
+  const vin         = uploadModal.data('vin');
+  const plate       = uploadModal.data('plate');
+  if (!parsed || !vehicleId) return;
+
+  _pendingContractFill = { parsed, vehicleId, vin, plate };
+
+  bootstrap.Modal.getInstance(document.getElementById('purchaseUploadModal'))?.hide();
+});
+
+/*
+ * Wait for the upload modal to finish closing before opening the finance modal.
+ */
+$('#purchaseUploadModal').on('hidden.bs.modal', function () {
+  if (!_pendingContractFill) return;
+  const { vehicleId, vin, plate } = _pendingContractFill;
+
+  const financeModalEl = document.getElementById('manageFinanceModal');
+  $(financeModalEl).data('vehicleId', vehicleId);
+  $('#mfVin').text(vin || '-');
+  $('#mfPlate').text(plate || '-');
+
+  new bootstrap.Modal(financeModalEl).show();
+});
+
+/*
+ * After the finance modal finishes opening, resetCostForm() has already run.
+ * Fill fields here so the reset doesn't wipe the values.
+ */
+$('#manageFinanceModal').on('shown.bs.modal', function () {
+  if (!_pendingContractFill) return;
+  fillContractFields(_pendingContractFill.parsed);
+  _pendingContractFill = null;
 });
 
 function _parseDollar(val) {

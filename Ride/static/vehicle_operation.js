@@ -105,6 +105,11 @@ $(document).ready(function () {
                 Operation Finance
             </button>
 
+            <button class="btn btn-sm btn-outline-warning actUploadServiceInvoice"
+                data-id="${vehicleId}" data-vin="${vin}" data-plate="${plate}">
+                Upload Service Invoice
+            </button>
+
         </div>
         `;
 
@@ -175,6 +180,25 @@ $(document).ready(function () {
         modal.show();
     });
 
+
+    // Upload Service Invoice — opens the dedicated invoice upload modal
+    $(document).on('click', '.actUploadServiceInvoice', function () {
+        const vehicleId = $(this).data('id');
+        const vin       = $(this).data('vin');
+        const plate     = $(this).data('plate');
+        if (!vehicleId) return;
+
+        const modalEl = document.getElementById('invoiceUploadModal');
+        $(modalEl).data({ vehicleId, vin, plate });
+
+        $('#iuVin').text(vin || '-');
+        $('#iuPlate').text(plate || '-');
+        $('#iuFile').val('');
+        $('#iuStatus').html('');
+        $('#iuReview').addClass('d-none');
+
+        new bootstrap.Modal(modalEl).show();
+    });
 
     //
     $(window).on('resize', function () {

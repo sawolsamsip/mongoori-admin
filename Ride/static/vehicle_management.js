@@ -63,10 +63,20 @@ $(document).ready(function () {
         // add action row
         
         const actionHtml = `
-            <div class="d-flex gap-3 py-2">
+            <div class="d-flex gap-3 py-2 flex-wrap">
             <button class="btn btn-sm btn-outline-secondary actManageFinance" data-id="${vehicleId}" data-vin="${vin}"
             data-plate="${plate}">
                 Manage Finance
+            </button>
+
+            <button class="btn btn-sm btn-outline-primary actAddPurchaseDoc"
+                data-id="${vehicleId}" data-vin="${vin}" data-plate="${plate}">
+                Add Purchase Document
+            </button>
+
+            <button class="btn btn-sm btn-outline-warning actAddServiceInvoice"
+                data-id="${vehicleId}" data-vin="${vin}" data-plate="${plate}">
+                Add Service Invoice
             </button>
 
             <button class="btn btn-sm btn-outline-info actManageWarranty" data-id="${vehicleId}">
@@ -155,6 +165,45 @@ $(document).ready(function () {
 
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
+    });
+
+    // Add Purchase Document modal
+    $(document).on('click', '.actAddPurchaseDoc', function () {
+        const vehicleId = $(this).data('id');
+        const vin       = $(this).data('vin');
+        const plate     = $(this).data('plate');
+        if (!vehicleId) return;
+
+        const modalEl = document.getElementById('purchaseUploadModal');
+        $(modalEl).data({ vehicleId, vin, plate });
+
+        $('#puVin').text(vin || '-');
+        $('#puPlate').text(plate || '-');
+        $('#puFile').val('');
+        $('#puStatus').html('');
+        $('#puPreview').addClass('d-none');
+        $('#puPreviewContent').text('');
+
+        new bootstrap.Modal(modalEl).show();
+    });
+
+    // Add Service Invoice modal
+    $(document).on('click', '.actAddServiceInvoice', function () {
+        const vehicleId = $(this).data('id');
+        const vin       = $(this).data('vin');
+        const plate     = $(this).data('plate');
+        if (!vehicleId) return;
+
+        const modalEl = document.getElementById('invoiceUploadModal');
+        $(modalEl).data({ vehicleId, vin, plate });
+
+        $('#iuVin').text(vin || '-');
+        $('#iuPlate').text(plate || '-');
+        $('#iuFile').val('');
+        $('#iuStatus').html('');
+        $('#iuReview').addClass('d-none');
+
+        new bootstrap.Modal(modalEl).show();
     });
 
     //manage warranty

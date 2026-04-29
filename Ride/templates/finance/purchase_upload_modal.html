@@ -1,0 +1,47 @@
+<div class="modal fade" id="purchaseUploadModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Add Purchase Document</h5>
+          <small class="text-muted">
+            Plate: <span id="puPlate"></span> · VIN: <span id="puVin"></span>
+          </small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="row g-2 align-items-end">
+          <div class="col">
+            <label class="form-label small mb-1">Purchase contract (PDF or image)</label>
+            <input type="file" class="form-control form-control-sm" id="puFile"
+                   accept=".pdf,.png,.jpg,.jpeg">
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-outline-primary btn-sm" id="puParseBtn">Parse</button>
+          </div>
+        </div>
+
+        <div id="puStatus" class="mt-2 small"></div>
+
+        <div id="puPreview" class="d-none mt-3">
+          <div class="border rounded p-2 bg-light small mb-3"
+               id="puPreviewContent" style="white-space: pre-wrap; font-family: monospace;">
+          </div>
+          <button class="btn btn-success w-100" id="puFillBtn">
+            Fill Finance Form →
+          </button>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+      </div>
+
+    </div>
+  </div>
+</div>

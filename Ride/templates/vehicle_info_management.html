@@ -33,7 +33,7 @@ Mongoori - Vehicle List
 
             <tbody>
                 {% for v in vehicles %}
-                <tr data-vehicle-platform-id="{{ v.vehicle_platform_id }}" data-vin="{{ v.vin }}" data-plate="{{ v.plate_number }}"
+                <tr data-id="{{ v.vehicle_id }}" data-vehicle-platform-id="{{ v.vehicle_platform_id }}" data-vin="{{ v.vin }}" data-plate="{{ v.plate_number }}"
                     style="cursor:pointer;">
                     <td>{{v.plate_number}}</td>
                     <td>{{v.vin}}</td>
@@ -60,10 +60,14 @@ Mongoori - Vehicle List
 </div>
 
 {% include "finance/vehicle_finance.html" %}
+{% include "finance/vehicle_finance_operation.html" %}
+{% include "finance/purchase_upload_modal.html" %}
+{% include "finance/invoice_upload_modal.html" %}
 
 {% endblock %}
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='finance_management/finance_management.js') }}"></script>
+<script src="{{ url_for('static', filename='finance_management/finance_operation.js') }}"></script>
 <script src="{{ url_for('static', filename='vehicle_management.js') }}"></script>
 {% endblock %}

@@ -3,7 +3,7 @@ import uuid
 import tempfile
 from flask import Blueprint, request, jsonify, session
 from werkzeug.utils import secure_filename
-from services.contract_parser import process_file
+from services.contract.extractor import process_file
 
 contract_api_bp = Blueprint('contract_api', __name__)
 
