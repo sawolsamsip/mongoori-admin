@@ -201,7 +201,11 @@ $(document).ready(function () {
         $('#iuPlate').text(plate || '-');
         $('#iuFile').val('');
         $('#iuStatus').html('');
-        $('#iuReview').addClass('d-none');
+        $('#iuVinWarning').addClass('d-none');
+        $('#iuDate').val('');
+        $('#iuAmount').val('');
+        $('#iuNotes').val('');
+        $('#iuCostCategory').val('');
 
         new bootstrap.Modal(modalEl).show();
     });

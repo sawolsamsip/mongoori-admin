@@ -1,0 +1,121 @@
+<div class="modal fade" id="purchaseInvoiceModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0">Purchase Invoice</h5>
+          <small class="text-muted">Add purchase and financing information for an existing vehicle.</small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- ── Vehicle selection ──────────────────────────────── -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Vehicle <span class="text-danger">*</span></label>
+          <select class="form-select" id="piVehicle">
+            <option value="" disabled selected>Loading vehicles…</option>
+          </select>
+          <!-- VIN match indicator (hidden until parse runs) -->
+          <div id="piVinMatch" class="d-none mt-1 small">
+            Extracted VIN: <span id="piExtractedVin" class="font-monospace fw-semibold"></span>
+            — <span id="piVinMatchText"></span>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- ── Purchase details ───────────────────────────────── -->
+        <h6 class="fw-semibold mb-2">Purchase Details</h6>
+
+        <div class="row g-2 mb-2">
+          <div class="col-md-6">
+            <label class="form-label small mb-1">Purchase Date <span class="text-danger">*</span></label>
+            <input type="date" class="form-control form-control-sm" id="piPurchaseDate">
+          </div>
+        </div>
+
+        <div class="row g-2 mb-2">
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Vehicle Price <span class="text-danger">*</span></label>
+            <input type="number" class="form-control form-control-sm" id="piVehiclePrice" step="0.01" min="0" placeholder="0.00">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Sales Tax / Fees</label>
+            <input type="number" class="form-control form-control-sm" id="piSalesTax" step="0.01" min="0" placeholder="0.00">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Out-the-door Total</label>
+            <input type="number" class="form-control form-control-sm" id="piOutTheDoor" step="0.01" min="0" placeholder="0.00">
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- ── Financing ──────────────────────────────────────── -->
+        <h6 class="fw-semibold mb-2">Financing <span class="text-muted fw-normal small">(leave blank if cash purchase)</span></h6>
+
+        <div class="row g-2 mb-2">
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Down Payment</label>
+            <input type="number" class="form-control form-control-sm" id="piDownPayment" step="0.01" min="0" placeholder="0.00">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Financed Amount</label>
+            <input type="number" class="form-control form-control-sm" id="piFinancedAmount" step="0.01" min="0" placeholder="0.00">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">APR (%)</label>
+            <input type="number" class="form-control form-control-sm" id="piApr" step="0.01" min="0" placeholder="e.g. 4.99">
+          </div>
+        </div>
+
+        <div class="row g-2 mb-2">
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Loan Term (months)</label>
+            <input type="number" class="form-control form-control-sm" id="piLoanTerm" step="1" min="1" placeholder="e.g. 72">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">Monthly Payment</label>
+            <input type="number" class="form-control form-control-sm" id="piMonthlyPayment" step="0.01" min="0" placeholder="0.00">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small mb-1">First Payment Date</label>
+            <input type="date" class="form-control form-control-sm" id="piFirstPaymentDate">
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- ── Notes ─────────────────────────────────────────── -->
+        <div class="mb-3">
+          <label class="form-label small mb-1">Notes</label>
+          <textarea class="form-control form-control-sm" id="piNotes" rows="2"></textarea>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- ── Optional PDF autofill ─────────────────────────── -->
+        <p class="small text-muted mb-1">Optionally upload a purchase contract PDF to auto-fill the fields above.</p>
+        <div class="row g-2 align-items-end mb-1">
+          <div class="col">
+            <input type="file" class="form-control form-control-sm" id="piFile" accept=".pdf,.png,.jpg,.jpeg">
+          </div>
+          <div class="col-auto">
+            <button class="btn btn-outline-secondary btn-sm" id="piParseBtn">Parse</button>
+          </div>
+        </div>
+        <div id="piParseStatus" class="mt-1 small"></div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary btn-sm" id="piSaveBtn">Save Purchase Invoice</button>
+      </div>
+
+    </div>
+  </div>
+</div>

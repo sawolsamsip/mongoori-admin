@@ -1,76 +1,79 @@
 <div class="modal fade" id="invoiceUploadModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
 
       <div class="modal-header">
         <div>
           <h5 class="modal-title mb-1">Upload Service Invoice</h5>
           <small class="text-muted">
-            Plate: <span id="iuPlate"></span> · VIN: <span id="iuVin"></span>
+            Plate: <span id="iuPlate"></span> &middot; VIN: <span id="iuVin"></span>
           </small>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
 
+      <!--
+        modal-body is scrollable so all fields remain reachable on short viewports.
+        Every field below is rendered unconditionally — no d-none, no conditional wrapper.
+        Parse only autofills; it never hides or shows any element of this form.
+      -->
       <div class="modal-body">
 
-        <!-- File upload row — always visible -->
-        <div class="row g-2 align-items-end">
-          <div class="col">
-            <label class="form-label small mb-1">Tesla service invoice (PDF)</label>
-            <input type="file" class="form-control form-control-sm" id="iuFile" accept=".pdf">
+        <!-- ── Category ─────────────────────────────────────────── -->
+        <div class="mb-2">
+          <label class="form-label small mb-1">Category</label>
+          <select class="form-select form-select-sm" id="iuCostCategory">
+            <option value="" disabled selected>Choose...</option>
+          </select>
+        </div>
+
+        <!-- ── Date + Amount ─────────────────────────────────────── -->
+        <div class="row g-2 mb-2">
+          <div class="col-6">
+            <label class="form-label small mb-1">Date</label>
+            <input type="date" class="form-control form-control-sm" id="iuDate">
           </div>
-          <div class="col-auto">
-            <button class="btn btn-outline-primary btn-sm" id="iuParseBtn">Parse</button>
+          <div class="col-6">
+            <label class="form-label small mb-1">Amount</label>
+            <input type="number" class="form-control form-control-sm" id="iuAmount" step="0.01" min="0">
           </div>
         </div>
 
-        <!-- Status line -->
-        <div id="iuStatus" class="mt-2 small"></div>
+        <!-- ── Notes ─────────────────────────────────────────────── -->
+        <div class="mb-3">
+          <label class="form-label small mb-1">Notes</label>
+          <textarea class="form-control form-control-sm" id="iuNotes" rows="4"></textarea>
+        </div>
 
-        <!-- Review / edit form — hidden until parse succeeds -->
-        <div id="iuReview" class="d-none mt-3">
+        <hr class="my-2">
 
-          <!-- VIN comparison -->
-          <div class="p-2 border rounded bg-light small mb-3">
-            <div>Vehicle VIN: <span id="iuVehicleVin" class="fw-semibold font-monospace"></span></div>
-            <div>Invoice VIN: <span id="iuInvoiceVin" class="fw-semibold font-monospace"></span></div>
-            <div id="iuVinWarning" class="d-none text-warning fw-semibold mt-1">
-              ⚠ VIN does not match the selected vehicle. Verify before saving.
-            </div>
+        <!-- ── Auto-fill from PDF (optional) ────────────────────── -->
+        <p class="small text-muted mb-1">
+          Optionally upload a Tesla service invoice PDF to auto-fill the fields above.
+        </p>
+        <div class="row g-2 align-items-end mb-1">
+          <div class="col">
+            <input type="file" class="form-control form-control-sm" id="iuFile" accept=".pdf">
           </div>
-
-          <div class="row g-2 mb-2">
-            <div class="col-md-6">
-              <label class="form-label small mb-1">Invoice Date</label>
-              <input type="date" class="form-control form-control-sm" id="iuDate">
-            </div>
-            <div class="col-md-6">
-              <label class="form-label small mb-1">Total Amount</label>
-              <input type="number" class="form-control form-control-sm" id="iuAmount" step="0.01">
-            </div>
+          <div class="col-auto">
+            <button class="btn btn-outline-secondary btn-sm" id="iuParseBtn">Parse</button>
           </div>
+        </div>
 
-          <div class="mb-2">
-            <label class="form-label small mb-1">Category</label>
-            <select class="form-select form-select-sm" id="iuCostCategory">
-              <option value="" disabled selected>Choose...</option>
-            </select>
-          </div>
+        <!-- Parse status — shows progress, success hint, or error -->
+        <div id="iuStatus" class="mt-1 small"></div>
 
-          <div class="mb-3">
-            <label class="form-label small mb-1">Notes</label>
-            <textarea class="form-control form-control-sm" id="iuNotes" rows="4"></textarea>
-          </div>
-
-          <button class="btn btn-success w-100" id="iuSaveBtn">Save Cost</button>
-
+        <!-- VIN mismatch warning — hidden until parse finds a mismatch -->
+        <div id="iuVinWarning" class="d-none alert alert-warning py-1 px-2 small mt-2 mb-0" role="alert">
+          &#9888; Invoice VIN (<span id="iuInvoiceVin" class="font-monospace fw-semibold"></span>)
+          does not match the selected vehicle. Verify before saving.
         </div>
 
       </div>
 
       <div class="modal-footer">
         <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-success btn-sm" id="iuSaveBtn">Save Cost</button>
       </div>
 
     </div>

@@ -16,9 +16,10 @@ Mongoori - Vehicle List
         ↻ Pull from Platform
       </button>
 
-      <a href="{{ url_for('vehicle_management_pages.vehicle_create_page') }}" class="btn btn-primary btn-sm">
-        + Add Vehicle
-      </a>
+      <button id="purchaseInvoiceBtn" class="btn btn-primary btn-sm"
+              data-bs-toggle="modal" data-bs-target="#purchaseInvoiceModal">
+        + Purchase Invoice
+      </button>
     </div>
   </div>
 
@@ -43,10 +44,12 @@ Mongoori - Vehicle List
 
 {% include "finance/vehicle_finance.html" %}
 {% include "vehicle/change_plate_modal.html" %}
+{% include "vehicle/purchase_invoice_modal.html" %}
 
 {% endblock %}
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='finance_management/finance_management.js') }}"></script>
 <script src="{{ url_for('static', filename='vehicle_management_v2.js') }}"></script>
+<script src="{{ url_for('static', filename='purchase_invoice.js') }}"></script>
 {% endblock %}

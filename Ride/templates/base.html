@@ -57,25 +57,16 @@
                         <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                             <i class="fa-solid fa-car"></i> Vehicle
                         </a>
-                        
+
                         <ul class="dropdown-menu">
-                            
-                            <li><a class="dropdown-item" href="{{ url_for('vehicle_management_pages.vehicle_list_page') }}">Vehicle List</a></li>
-                            
+
+                            <li><a class="dropdown-item" href="{{ url_for('vehicle_management_pages.vehicle_list_page_v2') }}">Vehicle Management</a></li>
+
                             <li><hr class="dropdown-divider"></li>
 
                             <li><a class="dropdown-item" href="{{ url_for('warranty_pages.purchase_warranty_list_page') }}">Warranty List</a></li>
                         </ul>
                     </li>
-
-                    <!-- dev -->
-                    <li>
-                        <a class="dropdown-item text-success" 
-                        href="{{ url_for('vehicle_management_pages.vehicle_list_page_v2') }}">
-                        Vehicle List (Platform)
-                        </a>
-                    </li>
-                    <!-- dev -->
                     
                 </ul>
                 <!-- End Navbar links -->

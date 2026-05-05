@@ -250,24 +250,27 @@ function resetOperationCostForm() {
 
 /* ===================== SERVICE INVOICE PARSER ===================== */
 
-async function _loadInvoiceCostCategories() {
+function _loadInvoiceCostCategories() {
   const select = $('#iuCostCategory');
   if (select.find('option[value!=""]').length) return; // already loaded
-
-  try {
-    const res  = await fetch('/api/finance/operation/categories?type=cost');
-    const data = await res.json();
-    if (!res.ok || !data.success) return;
-    data.categories.forEach(c => {
-      select.append(`<option value="${c.category_id}">${c.name}</option>`);
-    });
-  } catch (err) {
-    console.error('[invoice] failed to load cost categories', err);
-  }
+  fetch('/api/finance/operation/categories?type=cost')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) return;
+      data.categories.forEach(c => {
+        select.append(`<option value="${c.category_id}">${c.name}</option>`);
+      });
+    })
+    .catch(err => console.error('[invoice] failed to load cost categories', err));
 }
 
+/* Load categories as soon as the modal opens */
+$('#invoiceUploadModal').on('shown.bs.modal', function () {
+  _loadInvoiceCostCategories();
+});
 
-/* --- Parse step --- */
+
+/* --- Parse: autofills the visible form fields --- */
 $(document).on('click', '#iuParseBtn', async function () {
   const fileInput = document.getElementById('iuFile');
   if (!fileInput || !fileInput.files.length) {
@@ -277,7 +280,7 @@ $(document).on('click', '#iuParseBtn', async function () {
   const btn    = $(this);
   const status = $('#iuStatus');
   btn.prop('disabled', true);
-  $('#iuReview').addClass('d-none');
+  $('#iuVinWarning').addClass('d-none');
   status.html('<span class="text-muted">Parsing invoice, please wait...</span>');
 
   const formData = new FormData();
@@ -293,33 +296,25 @@ $(document).on('click', '#iuParseBtn', async function () {
     }
 
     const d          = data.data;
-    const modal      = $('#invoiceUploadModal');
-    const vehicleVin = (modal.data('vin') || '').trim().toUpperCase();
+    const vehicleVin = ($('#invoiceUploadModal').data('vin') || '').trim().toUpperCase();
     const invoiceVin = (d.vin || '').trim().toUpperCase();
-    const vinMatch   = vehicleVin && invoiceVin && invoiceVin === vehicleVin;
 
-    /* VIN display */
-    $('#iuVehicleVin').text(vehicleVin || '—');
-    $('#iuInvoiceVin').text(invoiceVin || '(not found)');
-    if (invoiceVin && !vinMatch) {
+    /* VIN mismatch warning */
+    if (invoiceVin && vehicleVin && invoiceVin !== vehicleVin) {
+      $('#iuInvoiceVin').text(invoiceVin);
       $('#iuVinWarning').removeClass('d-none');
-    } else {
-      $('#iuVinWarning').addClass('d-none');
     }
 
-    /* Editable fields */
-    $('#iuDate').val(d.invoice_date || '');
-    $('#iuAmount').val(d.total_amount != null ? d.total_amount : '');
+    /* Autofill editable fields */
+    if (d.invoice_date)      $('#iuDate').val(d.invoice_date);
+    if (d.total_amount != null) $('#iuAmount').val(d.total_amount);
 
     const notes = (d.jobs || [])
       .map(j => `${j.concern}: $${Number(j.amount).toFixed(2)}`)
       .join('\n');
-    $('#iuNotes').val(notes);
+    if (notes) $('#iuNotes').val(notes);
 
-    await _loadInvoiceCostCategories();
-
-    status.html('<span class="text-success">Parsed successfully. Review and edit below, then save.</span>');
-    $('#iuReview').removeClass('d-none');
+    status.html('<span class="text-success">Fields filled from invoice. Review and edit, then save.</span>');
 
   } catch (err) {
     console.error(err);
