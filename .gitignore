@@ -141,4 +141,4 @@ vite.config.ts.timestamp-*
 # venv
 .venv/
 
-CLAUDE.md
+CLAUDE.mdcommit_log.txt
