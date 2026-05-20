@@ -6,12 +6,17 @@ from db import get_conn
 management_api_bp = Blueprint("management_api", __name__, url_prefix="/api/management")
 
 PLATFORM_BASE = os.getenv("PLATFORM_BASE", "http://localhost:3000")
+PLATFORM_KEY  = os.getenv("PLATFORM_KEY")
 
 
 @management_api_bp.post("/cars/sync")
 def sync_company_cars():
     try:
-        r = requests.get(f"{PLATFORM_BASE}/api/admin/company-cars", timeout=10)
+        r = requests.get(
+            f"{PLATFORM_BASE}/api/admin/company-cars",
+            headers={"X-Admin-Service-Key": PLATFORM_KEY},
+            timeout=10,
+        )
         r.raise_for_status()
         cars = r.json().get("cars", [])
 
@@ -142,7 +147,11 @@ def sync_finance():
         if since:
             url += f"?since={since}"
 
-        r = requests.get(url, timeout=10)
+        r = requests.get(
+            url,
+            headers={"X-Admin-Service-Key": PLATFORM_KEY},
+            timeout=10,
+        )
         r.raise_for_status()
         invoices = r.json().get("invoices", [])
 
@@ -443,8 +452,9 @@ def get_rental_usage_analytics():
     try:
         r = requests.get(
             f"{PLATFORM_BASE}/api/admin/analytics/rental-usage",
+            headers={"X-Admin-Service-Key": PLATFORM_KEY},
             params={"window": window},
-            timeout=10
+            timeout=10,
         )
         r.raise_for_status()
         return jsonify(r.json())

@@ -1,6 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from dotenv import load_dotenv
 import os
+
+load_dotenv()
+
 from db import init_db, close_conn
 from routes.auth import auth_bp
 from datetime import timedelta
@@ -27,8 +30,6 @@ from routes.api.platform.management_api import management_api_bp
 from routes.api.contract_api import contract_api_bp
 from routes.api.invoice_api import invoice_api_bp
 from routes.api.finance.purchase_invoice_api import purchase_invoice_api_bp
-
-load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY")
